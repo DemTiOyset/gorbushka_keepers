@@ -96,7 +96,7 @@ async def create_tenant_database(db_name: str) -> None:
     Использует специальное изолированное подключение с выключенными транзакциями.
     """
     # Подключаемся к системной базе 'postgres', чтобы иметь право создавать другие БД
-    sys_url = "postgresql+asyncpg://osman:osman@localhost:5432/postgres"
+    sys_url = settings.postgres_admin_url
     temp_engine = create_async_engine(sys_url, isolation_level="AUTOCOMMIT")
 
     async with temp_engine.connect() as conn:

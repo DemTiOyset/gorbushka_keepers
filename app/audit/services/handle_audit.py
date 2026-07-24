@@ -1,10 +1,9 @@
 from datetime import date
 
-from fastapi import HTTPException, status
-
 from app.audit.repositories.audit_repo import AuditRepository
 from app.audit.schemas.audit_action import (
     AuditActionCreate,
+    AuditActionCreateResponse,
     AuditActionResponse,
     DeleteResponseDTO,
 )
@@ -12,6 +11,7 @@ from app.audit.schemas.audit_day import (
     AuditDayFullResponse,
     AuditDaySetInitialCashResponse,
 )
+from app.audit.schemas.audit_exc import ActionNotFoundError
 
 
 class AuditHandler:
@@ -71,7 +71,7 @@ class AuditHandler:
             cash_from_db.current_cash,
         )
 
-        action = AuditActionResponse(
+        action = AuditActionCreateResponse(
             id=action_id,
             actor=actor,
             action=action,
@@ -86,10 +86,7 @@ class AuditHandler:
         deleted_action_from_db = await self.repo.delete_action(action_id=action_id)
 
         if deleted_action_from_db is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Действие не найдено.",
-            )
+            raise ActionNotFoundError()
 
         cash_from_db = await self.repo.get_cash()
 

@@ -1,8 +1,13 @@
 import asyncio
 
-from fastapi import HTTPException, status
-
+from app.auth.schemas.user_exc import (
+    FailedInitialiseDatabaseError,
+    UserAlreadyExistError,
+    UserNotFoundError,
+    UserUnauthorizedError,
+)
 from app.auth.schemas.user_schemas import LoginUserSchema, RegisterUserSchema
+from app.infrastructure.config import settings
 from app.infrastructure.database import create_tenant_database, init_tenant_migrations
 from app.infrastructure.models.user import User
 
@@ -20,10 +25,7 @@ class AuthHandler:
         )
 
         if user_from_db is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Данный пользователь не зарегистрирован.",
-            )
+            raise UserNotFoundError()
 
         is_password_valid = verify_password(
             plain_password=payload.password,
@@ -31,10 +33,7 @@ class AuthHandler:
         )
 
         if not is_password_valid:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Неверное имя пользователя или пароль.",
-            )
+            raise UserUnauthorizedError()
 
         token_data = {"sub": user_from_db.username}
 
@@ -48,15 +47,12 @@ class AuthHandler:
         )
 
         if user_from_db:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Данный уже существует.",
-            )
+            raise UserAlreadyExistError()
 
         hashed_password = hash_password(payload.password)
 
         safe_db_name = f"db_{payload.username.lower().strip()}"
-        tenant_url = f"postgresql+asyncpg://osman:osman@localhost:5432/{safe_db_name}"
+        tenant_url = settings.tenant_url(safe_db_name)
 
         try:
             # 3. ШАГ А: Физически создаем пустую базу на сервере PostgreSQL
@@ -67,10 +63,7 @@ class AuthHandler:
             await asyncio.to_thread(init_tenant_migrations, tenant_url)
 
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Не удалось инициализировать персональную базу данных: {str(e)}",
-            )
+            raise FailedInitialiseDatabaseError(detail=str(e))
 
         new_user = User(
             username=payload.username,

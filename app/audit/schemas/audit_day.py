@@ -29,6 +29,8 @@ class AuditDayFullResponse(CashResponse):
     model_config = ConfigDict(from_attributes=True)
 
     creation_date: date
+    initial_cash: int
+    current_cash: int
 
     # Вложенный список всех действий за этот день
     actions: list[AuditActionResponse] = Field(

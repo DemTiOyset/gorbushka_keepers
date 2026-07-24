@@ -1,0 +1,65 @@
+services:
+  # ---------------------------------------------------------------
+  # PostgreSQL: одна инстанса с системной БД и динамическими tenant-БД
+  # (db_<username>). Пароль и пользователь должны совпадать с тем, что
+  # указан в POSTGRES_* переменных сервиса backend.
+  # ---------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: gorbushka_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: osman
+      POSTGRES_PASSWORD: osman
+      POSTGRES_DB: system_meta
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osman -d system_meta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------
+  # Backend: FastAPI + uv. Применяет системные миграции при старте и
+  # раздаёт API на 8000 порту.
+  # ---------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gorbushka_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Используем имя сервиса postgres в качестве хоста
+      DATABASE_URL: postgresql+asyncpg://osman:osman@postgres:5432/system_meta
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: osman
+      POSTGRES_PASSWORD: osman
+      SECRET_KEY: 9ZC+2mYiBzR+MX6Vjq7f8SM4idTGft2DRz+CJ/zNKnE=
+      ALGORITHM: HS256
+    ports:
+      - "8000:8000"
+
+  # ---------------------------------------------------------------
+  # Frontend: собранный SPA + nginx, проксирующий /api/* на backend.
+  # ---------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gorbushka_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:

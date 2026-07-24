@@ -5,6 +5,8 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from app.infrastructure.config import settings
+
 # Импортируем ваш Base
 from app.infrastructure.database import Base
 
@@ -14,6 +16,12 @@ from app.infrastructure.models.cash import Cash
 from app.infrastructure.models.user import User
 
 config = context.config
+
+# Переопределяем URL из настроек приложения, чтобы он подхватывал
+# переменные окружения (важно для docker-compose). Если URL уже явно
+# установлен программно (через set_main_option для tenant-базы) — он сохранится.
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

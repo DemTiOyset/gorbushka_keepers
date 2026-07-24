@@ -42,8 +42,10 @@ class AuditActionResponse(BaseModel):
     action: str
     money: int
 
-    cash_by_day: int
+
+class AuditActionCreateResponse(AuditActionResponse):
     current_cash: int
+    cash_by_day: int
 
 
 class DeleteResponseDTO(BaseModel):
