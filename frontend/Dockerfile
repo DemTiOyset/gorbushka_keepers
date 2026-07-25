@@ -1,6 +1,7 @@
 # Двухэтапная сборка фронтенда.
 # На первом этапе собираем статические файлы Vite,
-# на втором раздаём их через nginx, проксируя /api на бэкенд.
+# на втором раздаём их через Caddy — он автоматически выпускает и
+# обновляет HTTPS-сертификаты Let's Encrypt при указанном домене.
 
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -9,8 +10,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-FROM nginx:1.27-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+FROM caddy:2-alpine
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY --from=builder /app/dist /srv
+EXPOSE 80 443

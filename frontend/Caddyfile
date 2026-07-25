@@ -1,0 +1,25 @@
+# Caddyfile.
+# Домен берётся из переменной окружения DOMAIN (см. docker-compose).
+# Caddy автоматически:
+#   1. Выпускает сертификат Let's Encrypt для указанного домена
+#   2. Редиректит HTTP → HTTPS
+#   3. Обновляет сертификат в фоне за 30 дней до истечения
+#
+# Локально (DOMAIN=localhost) — Caddy работает без TLS, чтобы не падать
+# при попытке выпустить сертификат для localhost.
+
+{$DOMAIN:localhost} {
+	encode gzip
+
+	# API проксируется на FastAPI, префикс /api стрипается через handle_path
+	handle_path /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# SPA: все прочие маршруты отдаются из /srv, с fallback на index.html
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
