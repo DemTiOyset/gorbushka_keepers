@@ -63,7 +63,7 @@ services:
             # Домен, на который Caddy будет выпускать сертификат.
             # Берётся из .env (см. .env.example). Локально можно оставить
             # localhost — Caddy будет работать без TLS.
-            DOMAIN: ${DOMAIN:-localhost}
+            DOMAIN: ${DOMAIN:-app-dozor.ru}
         ports:
             - "80:80"
             - "443:443"
