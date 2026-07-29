@@ -70,7 +70,7 @@ class AuthHandler:
 
         new_user = CreateUserSchema(
             username=payload.username,
-            password=hashed_password,
+            hashed_password=hashed_password,
             database_url=tenant_url,
         )
 
