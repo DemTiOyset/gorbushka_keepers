@@ -31,7 +31,7 @@ export default function Login({ onSuccess }: Props) {
     return (
         <div className="auth-wrap">
             <form className="auth-card" onSubmit={handleSubmit}>
-                <div className="auth-brand">Горбушка</div>
+                <div className="auth-brand">Дозор</div>
                 <h1 className="auth-title">Вход в личный кабинет</h1>
                 <p className="auth-subtitle">
                     Учёт кассы · введите свои данные для входа

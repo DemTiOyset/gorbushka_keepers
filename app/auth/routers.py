@@ -6,16 +6,10 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.auth.schemas.user_exc import (
-    FailedInitialiseDatabaseError,
-    UserAlreadyExistError,
-    UserNotFoundError,
-    UserUnauthorizedError,
-)
-from app.auth.schemas.user_schemas import LoginUserSchema, RegisterUserSchema
-from app.auth.services.handle_auth import AuthHandler
-
-from ..repositories.dependencies import get_repo_obj
+from app.auth.dependencies import get_repo_obj
+from app.auth.exceptions import UserNotFoundError, UserUnauthorizedError
+from app.auth.schemas import LoginUserSchema
+from app.auth.services import AuthHandler
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

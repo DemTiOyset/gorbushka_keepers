@@ -1,4 +1,4 @@
-// API клиент: общается с бэкендом через /api-префикс (nginx проксирует на FastAPI).
+// API клиент: общается с бэкендом через /api-префикс (Caddy проксирует на FastAPI).
 // JWT-токен хранится в localStorage и автоматически добавляется в заголовки.
 
 const API_PREFIX = "/api";
@@ -13,8 +13,12 @@ export interface AuditAction {
     actor: string;
     action: string;
     money: number;
-    cash_by_day: number;
+}
+
+// Ответ POST /audit/action: action + пересчитанные итоги.
+export interface AuditActionCreateResponse extends AuditAction {
     current_cash: number;
+    cash_by_day: number;
 }
 
 export interface AuditDay {
@@ -123,7 +127,7 @@ export const api = {
         action: string;
         money: number;
         creation_date?: string;
-    }): Promise<AuditAction> {
+    }): Promise<AuditActionCreateResponse> {
         const res = await fetch(`${API_PREFIX}/audit/action`, {
             method: "POST",
             headers: authHeaders(),

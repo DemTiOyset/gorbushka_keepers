@@ -1,22 +1,25 @@
 import asyncio
 
-from app.auth.schemas.user_exc import (
+from app.auth.exceptions import (
     FailedInitialiseDatabaseError,
     UserAlreadyExistError,
     UserNotFoundError,
     UserUnauthorizedError,
 )
-from app.auth.schemas.user_schemas import LoginUserSchema, RegisterUserSchema
+from app.auth.repo import AuthRepositoryInterface
+from app.auth.schemas import (
+    CreateUserSchema,
+    LoginUserSchema,
+    RegisterUserSchema,
+)
+from app.auth.utils import create_access_token, hash_password, verify_password
 from app.infrastructure.config import settings
 from app.infrastructure.database import create_tenant_database, init_tenant_migrations
 from app.infrastructure.models.user import User
 
-from ..dependencies.security import create_access_token, hash_password, verify_password
-from ..repositories.auth_repo import AuthRepository
-
 
 class AuthHandler:
-    def __init__(self, repo: AuthRepository):
+    def __init__(self, repo: AuthRepositoryInterface):
         self.repo = repo
 
     async def handle_login_user(self, payload: LoginUserSchema):
@@ -65,13 +68,23 @@ class AuthHandler:
         except Exception as e:
             raise FailedInitialiseDatabaseError(detail=str(e))
 
-        new_user = User(
+        new_user = CreateUserSchema(
             username=payload.username,
-            hashed_password=hashed_password,
+            password=hashed_password,
             database_url=tenant_url,
         )
 
-        self.repo.session.add(new_user)
-        await self.repo.session.commit()
+        await self.repo.create_user(new_user.model_dump())
+        await self.repo.commit()
 
         return {"status": "success", "detail": "Пользователь и его база данных созданы"}
+
+    async def handle_delete_user(self, username: str):
+        user_from_db: User | None = await self.repo.get_user_by_username_or_none(
+            username
+        )
+
+        if user_from_db is None:
+            raise UserNotFoundError()
+
+        await self.repo.delete_user(user_from_db)

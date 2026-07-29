@@ -6,7 +6,7 @@ services:
     # ---------------------------------------------------------------
     postgres:
         image: postgres:16-alpine
-        container_name: gorbushka_postgres
+        container_name: dozor_postgres
         restart: unless-stopped
         environment:
             POSTGRES_USER: osman
@@ -30,7 +30,7 @@ services:
         build:
             context: .
             dockerfile: Dockerfile
-        container_name: gorbushka_backend
+        container_name: dozor_backend
         restart: unless-stopped
         depends_on:
             postgres:
@@ -55,7 +55,7 @@ services:
         build:
             context: ./frontend
             dockerfile: Dockerfile
-        container_name: gorbushka_frontend
+        container_name: dozor_frontend
         restart: unless-stopped
         depends_on:
             - backend

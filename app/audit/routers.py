@@ -8,13 +8,16 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-import app.audit.schemas.audit_action as AuditActionSchemas
-from app.audit.repositories.audit_repo import AuditRepository
-from app.audit.repositories.dependencies import get_repo_obj
-from app.audit.schemas.audit_action import AuditActionResponse, DeleteResponseDTO
-from app.audit.schemas.audit_day import AuditDayFullResponse
-from app.audit.schemas.audit_exc import ActionNotFoundError
-from app.audit.services.handle_audit import AuditHandler
+from app.audit.dependencies import get_repo_obj
+from app.audit.exceptions import ActionNotFoundError
+from app.audit.repo import AuditRepository
+from app.audit.schemas import (
+    AuditActionCreate,
+    AuditActionResponse,
+    AuditDayFullResponse,
+    DeleteResponseDTO,
+)
+from app.audit.services import AuditHandler
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
@@ -49,7 +52,7 @@ async def set_initial_cash(
 
 @router.post("/action", response_model=AuditActionResponse)
 async def create_action(
-    payload: AuditActionSchemas.AuditActionCreate,
+    payload: AuditActionCreate,
     repo: AuditRepository = Depends(get_repo_obj),
 ) -> AuditActionResponse:
     """

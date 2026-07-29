@@ -152,7 +152,7 @@ export default function Dashboard({ onLogout }: Props) {
             <header className="topbar">
                 <div className="topbar-brand">
                     <span className="brand-mark">₽</span>
-                    <span className="brand-text">Горбушка · Касса</span>
+                    <span className="brand-text">Дозор · Касса</span>
                 </div>
                 <div className="topbar-user">
                     <span className="user-greeting">{username}</span>
@@ -310,9 +310,6 @@ export default function Dashboard({ onLogout }: Props) {
                                         <th className="col-actor">Кто</th>
                                         <th>Действие</th>
                                         <th className="col-money">Сумма</th>
-                                        <th className="col-cash">
-                                            Итог за день
-                                        </th>
                                         {canModify && (
                                             <th className="col-actions"></th>
                                         )}
@@ -331,9 +328,6 @@ export default function Dashboard({ onLogout }: Props) {
                                             >
                                                 {a.money >= 0 ? "+" : ""}
                                                 {formatMoney(a.money)} ₽
-                                            </td>
-                                            <td className="col-cash">
-                                                {formatMoney(a.cash_by_day)} ₽
                                             </td>
                                             {canModify && (
                                                 <td className="col-actions">

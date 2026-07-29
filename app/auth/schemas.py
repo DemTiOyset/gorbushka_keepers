@@ -12,3 +12,11 @@ class RegisterUserSchema(BaseUserSchema):
 
 class LoginUserSchema(BaseUserSchema):
     pass
+
+
+class DeleteUserSchema(BaseModel):
+    username: str
+
+
+class CreateUserSchema(BaseUserSchema):
+    database_url: str

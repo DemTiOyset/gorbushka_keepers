@@ -163,3 +163,61 @@ class OrderUpdatedNotificationDTO(BaseOrderNotificationDTO):
     update_type: OrderUpdateType = Field(alias="updateType")
 
     updated_at: datetime = Field(alias="updatedAt")
+
+
+class MoneyDTO(BaseModel):
+    value: float
+    currencyId: str
+
+
+class DeliveryPricesDTO(BaseModel):
+    payment: MoneyDTO | None = None
+    subsidy: MoneyDTO | None = None
+    vat: str | None = None
+
+
+class OrderPricesDTO(BaseModel):
+    payment: MoneyDTO | None = None
+    subsidy: MoneyDTO | None = None
+    cashback: MoneyDTO | None = None
+    delivery: DeliveryPricesDTO | None = None
+
+
+class ItemPricesDTO(BaseModel):
+    payment: MoneyDTO | None = None
+    subsidy: MoneyDTO | None = None
+    cashback: MoneyDTO | None = None
+    vat: str | None = None
+
+
+class BusinessOrderItemDTO(BaseModel):
+    id: int
+    offerId: str
+    offerName: str
+    count: int
+    prices: ItemPricesDTO | None = None
+
+
+class BusinessOrderShipmentDTO(BaseModel):
+    id: int
+    shipmentDate: datetime
+    shipmentTime: str | None = None
+
+
+class DeliveryOrderDatesDTO(BaseModel):
+    shipment: BusinessOrderShipmentDTO | None = None
+
+
+class BusinessOrderDTO(BaseModel):
+    orderId: int
+    campaignId: int
+    status: str
+    substatus: str | None = None
+    items: list[BusinessOrderItemDTO]
+    prices: OrderPricesDTO | None = None
+    delivery: DeliveryOrderDatesDTO | None = None
+
+
+class GetBusinessOrdersResponseDTO(BaseModel):
+    orders: list[BusinessOrderDTO]
+    paging: dict = {}

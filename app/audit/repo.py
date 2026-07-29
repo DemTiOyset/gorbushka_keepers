@@ -1,5 +1,6 @@
 from datetime import date
 
+from fastapi import Depends
 from sqlalchemy import (
     func,
     select,
