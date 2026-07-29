@@ -18,5 +18,7 @@ class DeleteUserSchema(BaseModel):
     username: str
 
 
-class CreateUserSchema(BaseUserSchema):
+class CreateUserSchema(BaseModel):
+    username: str
+    hashed_password: str
     database_url: str
