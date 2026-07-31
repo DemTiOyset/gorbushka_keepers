@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import date
-from typing import AsyncIterator
+from typing import AsyncIterator, Protocol
 
 import jwt
 from alembic import command
@@ -88,55 +88,61 @@ def get_sessionmaker(db_url: str) -> async_sessionmaker[AsyncSession]:
 # ---------------------------------------------------------------------------
 # АВТОМАТИЗАЦИЯ MULTI-TENANCY: Создание БД и накатывание миграций
 # ---------------------------------------------------------------------------
+class ProvisionerInterface(Protocol):
+    async def create_tenant_database(self, db_name: str) -> None: ...
+
+    def init_tenant_migrations(self, tenant_db_url) -> None: ...
 
 
-async def create_tenant_database(db_name: str) -> None:
-    """
-    Физически создает базу данных в PostgreSQL.
-    Использует специальное изолированное подключение с выключенными транзакциями.
-    """
-    # Подключаемся к системной базе 'postgres', чтобы иметь право создавать другие БД
-    sys_url = settings.postgres_admin_url
-    temp_engine = create_async_engine(sys_url, isolation_level="AUTOCOMMIT")
+class Provisioner:
+    async def create_tenant_database(self, db_name: str) -> None:
+        """
+        Физически создает базу данных в PostgreSQL.
+        Использует специальное изолированное подключение с выключенными транзакциями.
+        """
+        # Подключаемся к системной базе 'postgres', чтобы иметь право создавать другие БД
+        sys_url = settings.postgres_admin_url
+        temp_engine = create_async_engine(sys_url, isolation_level="AUTOCOMMIT")
 
-    async with temp_engine.connect() as conn:
+        async with temp_engine.connect() as conn:
+            try:
+                # Проверяем, существует ли база, чтобы избежать ошибок дублирования
+                check_query = text("SELECT 1 FROM pg_database WHERE datname = :db_name")
+                result = await conn.execute(check_query, {"db_name": db_name})
+                exists = result.scalar()
+
+                if not exists:
+                    # Безопасно экранируем имя базы данных штатными средствами SQLAlchemy
+                    await conn.execute(
+                        text(f'CREATE DATABASE "{db_name}" OWNER osman;')
+                    )
+                    logger.info(
+                        f"Физическая база данных '{db_name}' успешно создана на сервере."
+                    )
+                else:
+                    logger.warning(
+                        f"База данных '{db_name}' уже существует. Пропускаем создание."
+                    )
+            finally:
+                await temp_engine.dispose()
+
+    def init_tenant_migrations(self, tenant_db_url: str) -> None:
+        """
+        Программный запуск Alembic для новой БД селлера.
+        Запускается в синхронном режиме (потоке), так как сам Alembic внутри синхронен.
+        """
         try:
-            # Проверяем, существует ли база, чтобы избежать ошибок дублирования
-            check_query = text("SELECT 1 FROM pg_database WHERE datname = :db_name")
-            result = await conn.execute(check_query, {"db_name": db_name})
-            exists = result.scalar()
+            # Указываем путь к вашему файлу alembic.ini
+            alembic_cfg = Config("alembic.ini")
+            # Динамически подменяем целевой URL на базу нового селлера
+            alembic_cfg.set_main_option("sqlalchemy.url", tenant_db_url)
 
-            if not exists:
-                # Безопасно экранируем имя базы данных штатными средствами SQLAlchemy
-                await conn.execute(text(f'CREATE DATABASE "{db_name}" OWNER osman;'))
-                logger.info(
-                    f"Физическая база данных '{db_name}' успешно создана на сервере."
-                )
-            else:
-                logger.warning(
-                    f"База данных '{db_name}' уже существует. Пропускаем создание."
-                )
-        finally:
-            await temp_engine.dispose()
-
-
-def init_tenant_migrations(tenant_db_url: str) -> None:
-    """
-    Программный запуск Alembic для новой БД селлера.
-    Запускается в синхронном режиме (потоке), так как сам Alembic внутри синхронен.
-    """
-    try:
-        # Указываем путь к вашему файлу alembic.ini
-        alembic_cfg = Config("alembic.ini")
-        # Динамически подменяем целевой URL на базу нового селлера
-        alembic_cfg.set_main_option("sqlalchemy.url", tenant_db_url)
-
-        # Запускаем команду upgrade head с контекстным маркером 'tenant'
-        command.upgrade(alembic_cfg, "head", tag="tenant")
-        logger.info(f"Миграции Alembic успешно применены к базе: {tenant_db_url}")
-    except Exception as e:
-        logger.error(f"Ошибка при накатывании миграций Alembic: {e}")
-        raise
+            # Запускаем команду upgrade head с контекстным маркером 'tenant'
+            command.upgrade(alembic_cfg, "head", tag="tenant")
+            logger.info(f"Миграции Alembic успешно применены к базе: {tenant_db_url}")
+        except Exception as e:
+            logger.error(f"Ошибка при накатывании миграций Alembic: {e}")
+            raise
 
 
 # ---------------------------------------------------------------------------

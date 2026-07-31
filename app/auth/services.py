@@ -14,13 +14,16 @@ from app.auth.schemas import (
 )
 from app.auth.utils import create_access_token, hash_password, verify_password
 from app.infrastructure.config import settings
-from app.infrastructure.database import create_tenant_database, init_tenant_migrations
+from app.infrastructure.database import ProvisionerInterface
 from app.infrastructure.models.user import User
 
 
 class AuthHandler:
-    def __init__(self, repo: AuthRepositoryInterface):
+    def __init__(
+        self, repo: AuthRepositoryInterface, provisioner: ProvisionerInterface
+    ):
         self.repo = repo
+        self.provisioner = provisioner
 
     async def handle_login_user(self, payload: LoginUserSchema):
         user_from_db: User | None = await self.repo.get_user_by_username_or_none(
@@ -59,11 +62,11 @@ class AuthHandler:
 
         try:
             # 3. ШАГ А: Физически создаем пустую базу на сервере PostgreSQL
-            await create_tenant_database(db_name=safe_db_name)
+            await self.provisioner.create_tenant_database(db_name=safe_db_name)
 
             # 4. ШАГ Б: Накатываем таблицы кассы внутрь только что созданной базы через Alembic
             # Запускаем в отдельном потоке, чтобы синхронный Alembic не блокировал асинхронный цикл FastAPI
-            await asyncio.to_thread(init_tenant_migrations, tenant_url)
+            await asyncio.to_thread(self.provisioner.init_tenant_migrations, tenant_url)
 
         except Exception as e:
             raise FailedInitialiseDatabaseError(detail=str(e))

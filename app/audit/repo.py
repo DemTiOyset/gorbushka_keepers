@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Protocol, Sequence
 
 from fastapi import Depends
 from sqlalchemy import (
@@ -9,6 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.models.audit_action import AuditAction
 from app.infrastructure.models.cash import Cash
+
+
+class AuditRepositoryInterface(Protocol):
+    async def get_cash(self) -> "Cash": ...
+    async def calculate_cash(self, target_date: date | None = None) -> int: ...
+    async def get_actions_by_day(
+        self, target_date: date
+    ) -> Sequence["AuditAction"]: ...
+    async def create_action(self, data: dict) -> "AuditAction": ...
+    async def delete_action(self, action_id: int) -> "AuditAction | None": ...
+    async def commit(self) -> None: ...
 
 
 class AuditRepository:
@@ -38,7 +50,7 @@ class AuditRepository:
 
         return audit_actions
 
-    async def create_action(self, action_data: dict):
+    async def create_action(self, action_data: dict) -> AuditAction:
         audit_action = AuditAction(**action_data)
         self.session.add(audit_action)
 
@@ -46,7 +58,9 @@ class AuditRepository:
 
         return audit_action
 
-    async def update_action(self, action_id: int, update_data: dict):
+    async def update_action(
+        self, action_id: int, update_data: dict
+    ) -> AuditAction | None:
         stmt = select(AuditAction).where(AuditAction.id == action_id)
         result = await self.session.execute(stmt)
         action = result.scalar_one_or_none()
@@ -62,7 +76,7 @@ class AuditRepository:
 
         return action
 
-    async def delete_action(self, action_id: int):
+    async def delete_action(self, action_id: int) -> AuditAction | None:
         stmt = select(AuditAction).where(AuditAction.id == action_id)
         result = await self.session.execute(stmt)
         action = result.scalar_one_or_none()
