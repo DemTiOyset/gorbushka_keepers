@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Protocol, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +8,11 @@ from app.infrastructure.models.order import Order
 from app.infrastructure.models.order_item import OrderItem
 
 
-class CurrentOrdersRepository:
+class OrdersRepositoryInterface(Protocol):
+    async def get_orders_by_day(self, day: date) -> Sequence["OrderItem"]: ...
+
+
+class OrdersRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 

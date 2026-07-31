@@ -1,5 +1,5 @@
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
 
@@ -12,3 +12,8 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String)
 
     database_url: Mapped[str] = mapped_column(String)
+
+    shops: Mapped[list["Shops"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
