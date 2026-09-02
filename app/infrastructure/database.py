@@ -1,16 +1,13 @@
-import asyncio
 import logging
-from datetime import date
-from typing import AsyncIterator, Protocol
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Protocol, Type, TypeVar
 
 import jwt
 from alembic import command
-
-# Импортируем инструменты Alembic для программного запуска миграций
 from alembic.config import Config
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncEngine,
@@ -91,7 +88,7 @@ def get_sessionmaker(db_url: str) -> async_sessionmaker[AsyncSession]:
 class ProvisionerInterface(Protocol):
     async def create_tenant_database(self, db_name: str) -> None: ...
 
-    def init_tenant_migrations(self, tenant_db_url) -> None: ...
+    def init_tenant_migrations(self, tenant_db_url: str) -> None: ...
 
 
 class Provisioner:
@@ -100,19 +97,16 @@ class Provisioner:
         Физически создает базу данных в PostgreSQL.
         Использует специальное изолированное подключение с выключенными транзакциями.
         """
-        # Подключаемся к системной базе 'postgres', чтобы иметь право создавать другие БД
         sys_url = settings.postgres_admin_url
         temp_engine = create_async_engine(sys_url, isolation_level="AUTOCOMMIT")
 
         async with temp_engine.connect() as conn:
             try:
-                # Проверяем, существует ли база, чтобы избежать ошибок дублирования
                 check_query = text("SELECT 1 FROM pg_database WHERE datname = :db_name")
                 result = await conn.execute(check_query, {"db_name": db_name})
                 exists = result.scalar()
 
                 if not exists:
-                    # Безопасно экранируем имя базы данных штатными средствами SQLAlchemy
                     await conn.execute(
                         text(f'CREATE DATABASE "{db_name}" OWNER osman;')
                     )
@@ -128,17 +122,16 @@ class Provisioner:
 
     def init_tenant_migrations(self, tenant_db_url: str) -> None:
         """
-        Программный запуск Alembic для новой БД селлера.
-        Запускается в синхронном режиме (потоке), так как сам Alembic внутри синхронен.
+        Программный запуск Alembic для БД селлера.
         """
         try:
-            # Указываем путь к вашему файлу alembic.ini
             alembic_cfg = Config("alembic.ini")
-            # Динамически подменяем целевой URL на базу нового селлера
             alembic_cfg.set_main_option("sqlalchemy.url", tenant_db_url)
 
-            # Запускаем команду upgrade head с контекстным маркером 'tenant'
-            command.upgrade(alembic_cfg, "head", tag="tenant")
+            # Передаем параметр -x db_type=tenant, чтобы env.py отфильтровал только таблицы селлера
+            alembic_cfg.cmd_opts = type("CmdOpts", (), {"x": ["db_type=tenant"]})()  # type: ignore[attr-defined]
+
+            command.upgrade(alembic_cfg, "head")
             logger.info(f"Миграции Alembic успешно применены к базе: {tenant_db_url}")
         except Exception as e:
             logger.error(f"Ошибка при накатывании миграций Alembic: {e}")
@@ -161,7 +154,7 @@ async def get_db(
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        username: str = payload.get("sub")
+        username = payload.get("sub")
         if not username:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -187,7 +180,6 @@ async def get_db(
                     detail="Для данного пользователя не настроена база данных",
                 )
 
-            # Валидация строки, чтобы бэкенд аварийно не падал из-за записей вроде "string"
             if not str(db_url).startswith("postgresql"):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -206,7 +198,7 @@ async def get_db(
 
 
 async def get_system_db() -> AsyncIterator[AsyncSession]:
-    """Открывает сессию к центральной БД (для регистрации и логина)."""
+    """Открывает сессий к центральной БД (для регистрации и логина)."""
     async with async_session_maker() as session:
         try:
             yield session
@@ -225,3 +217,34 @@ async def dispose_db() -> None:
 
     await engine.dispose()
     logger.info("All database connections disposed")
+
+
+T = TypeVar("T")
+
+
+class TenantSessionManagerInterface(Protocol):
+    async def get_session(self, db_url: str) -> AsyncIterator[AsyncSession]: ...
+    async def get_repository(
+        self, db_url: str, repo_cls: Type[T]
+    ) -> AsyncIterator[T]: ...
+
+
+class TenantSessionManager:
+    """Отвечает за управление динамическими соединениями к БД тенентов."""
+
+    @asynccontextmanager
+    async def get_session(self, db_url: str) -> AsyncIterator[AsyncSession]:
+        session_maker = get_sessionmaker(db_url)
+        async with session_maker() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    @asynccontextmanager
+    async def get_repository(self, db_url: str, repo_cls: Type[T]) -> AsyncIterator[T]:
+        """Утилитарный метод: создает сессию и сразу оборачивает ее в нужный репозиторий."""
+        async with self.get_session(db_url) as session:
+            yield repo_cls(session)  # pyright: ignore[reportCallIssue]

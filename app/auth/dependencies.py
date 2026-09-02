@@ -10,6 +10,6 @@ async def get_repo_obj(session: AsyncSession = Depends(get_system_db)):
     return repo
 
 
-async def get_provisioner_obj(session: AsyncSession):
+async def get_provisioner_obj():
     provisioner = Provisioner()
     return provisioner

@@ -33,7 +33,7 @@ async def get(
     и возвращает их.
     Пусть будет возможность выбора даты.
     """
-    handler = AuditHandler(repo=repo)
+    handler = AuditHandler(repo=repo)  # pyright: ignore[reportArgumentType]
     return await handler.get_day(date)
 
 

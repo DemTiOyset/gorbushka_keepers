@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class BaseUserSchema(BaseModel):
@@ -22,3 +22,8 @@ class CreateUserSchema(BaseModel):
     username: str
     hashed_password: str
     database_url: str
+
+
+class ResponseUserSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    username: str

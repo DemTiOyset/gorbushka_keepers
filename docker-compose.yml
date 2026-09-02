@@ -36,7 +36,6 @@ services:
             postgres:
                 condition: service_healthy
         environment:
-            # Используем имя сервиса postgres в качестве хоста
             DATABASE_URL: postgresql+asyncpg://osman:osman@postgres:5432/system_meta
             POSTGRES_HOST: postgres
             POSTGRES_PORT: 5432
@@ -48,8 +47,12 @@ services:
             - "8000:8000"
 
     # ---------------------------------------------------------------
-    # Frontend: собранный SPA + Caddy. Caddy автоматически выпускает и
-    # обновляет HTTPS-сертификаты Let's Encrypt для домена из DOMAIN.
+    # Frontend: собранный SPA + Caddy.
+    #
+    # ЛОКАЛЬНО:  DOMAIN=localhost           → HTTP на localhost:80, без TLS
+    # ПРОДАКШЕН: DOMAIN=app-dozor.ru         → HTTPS через Let's Encrypt
+    #
+    # Домен берётся из переменной окружения DOMAIN (см. .env.example).
     # ---------------------------------------------------------------
     frontend:
         build:
@@ -60,9 +63,9 @@ services:
         depends_on:
             - backend
         environment:
-            # Домен, на который Caddy будет выпускать сертификат.
-            # Берётся из .env (см. .env.example). Локально можно оставить
-            # localhost — Caddy будет работать без TLS.
+            # Домен для Caddy.
+            # localhost  → без TLS (для локальной разработки)
+            # твой.домен → Let's Encrypt HTTPS (для прода)
             DOMAIN: ${DOMAIN:-app-dozor.ru}
         ports:
             - "80:80"
@@ -70,6 +73,26 @@ services:
         volumes:
             - caddy_data:/data
             - caddy_config:/config
+
+    # ---------------------------------------------------------------
+    # Тестовый PostgreSQL для интеграционных тестов.
+    # Запускается отдельно: docker compose up -d test_postgres
+    # ---------------------------------------------------------------
+    test_postgres:
+        image: postgres:16-alpine
+        container_name: dozor_test_postgres
+        restart: "no"
+        environment:
+            POSTGRES_USER: osman
+            POSTGRES_PASSWORD: osman
+            POSTGRES_DB: system_meta
+        ports:
+            - "5433:5432"
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U osman -d system_meta"]
+            interval: 3s
+            timeout: 3s
+            retries: 10
 
 volumes:
     postgres_data:

@@ -339,6 +339,208 @@ button {
     font-size: 14px;
 }
 
+/* ---------------- Табы в топбаре ---------------- */
+.topbar-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+}
+
+.topbar-tab {
+    background: transparent;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.topbar-tab:hover {
+    color: var(--color-text);
+}
+
+.topbar-tab--active {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ---------------- Статусные бейджи ---------------- */
+.status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+.status-badge--processing {
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+}
+
+.status-badge--pending {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.status-badge--delivery {
+    background: #f3e8ff;
+    color: #7c3aed;
+}
+
+.status-badge--pickup {
+    background: #e6fffa;
+    color: #0d9488;
+}
+
+.status-badge--delivered {
+    background: var(--color-positive-soft);
+    color: var(--color-positive);
+}
+
+.status-badge--cancelled,
+.status-badge--returned,
+.status-badge--partially_returned {
+    background: var(--color-negative-soft);
+    color: var(--color-negative);
+}
+
+.status-badge--placing,
+.status-badge--reserved,
+.status-badge--unpaid,
+.status-badge--unknown {
+    background: var(--color-surface-alt);
+    color: var(--color-text-muted);
+}
+
+/* ---------------- Скелетон-лоадеры ---------------- */
+@keyframes skeleton-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+
+.skeleton {
+    background: var(--color-border);
+    border-radius: var(--radius-sm);
+    animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+.skeleton-text {
+    height: 16px;
+    margin-bottom: 10px;
+    width: 60%;
+}
+
+.skeleton-text--short {
+    width: 35%;
+}
+
+.skeleton-card {
+    height: 72px;
+    margin-bottom: 12px;
+}
+
+.skeleton-stat {
+    height: 88px;
+    border-radius: var(--radius-md);
+}
+
+/* ---------------- Дата-пикер + кнопка Сегодня ---------------- */
+.date-picker-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.date-picker-row .field-input {
+    width: 200px;
+}
+
+/* ---------------- Карточка заказа ---------------- */
+.order-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.order-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 22px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s ease;
+}
+
+.order-card__head:hover {
+    background: var(--color-surface-alt);
+}
+
+.order-card__left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.order-card__title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.order-card__right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.order-card__payout {
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.order-card__expand-icon {
+    font-size: 18px;
+    color: var(--color-text-muted);
+    transition: transform 0.2s ease;
+    line-height: 1;
+}
+
+.order-card__expand-icon--open {
+    transform: rotate(90deg);
+}
+
+.order-card__footer {
+    padding: 10px 22px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    border-top: 1px solid var(--color-border);
+}
+
 .content {
     flex: 1;
     width: 100%;
@@ -372,10 +574,6 @@ button {
 .date-picker {
     display: flex;
     flex-direction: column;
-}
-
-.date-picker .field-input {
-    width: 200px;
 }
 
 /* ---------------- Сводные карточки ---------------- */

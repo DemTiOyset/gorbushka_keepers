@@ -1,0 +1,12 @@
+# Локальная разработка БЕЗ Caddy: Vite dev server с hot-reload.
+#
+# Используется только через docker-compose.override.yml — Docker Compose
+# автоматически мёржит его с docker-compose.yml при команде `docker compose up`.
+# Для продакшена используется Dockerfile (Caddy + собранный SPA).
+FROM node:20-alpine
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm install
+COPY . .
+EXPOSE 5173
+CMD ["npm", "run", "dev"]

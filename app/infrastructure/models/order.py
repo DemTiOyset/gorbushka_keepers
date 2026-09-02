@@ -1,44 +1,24 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Numeric, String
+from sqlalchemy import Boolean, DateTime, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
-from .stock_item import StockItem
 
 
 class Order(Base):
     __tablename__ = "orders"
 
-    posting_number: Mapped[str] = mapped_column(String(50), primary_key=True)
+    order_id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    status: Mapped[str] = mapped_column(
-        String(50),
-        index=True,  # по статусам часто выборки делать будем
-    )
+    campaign_id: Mapped[int] = mapped_column(Integer)
 
+    # Дата создания заказа.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
-    )
-
-    last_event_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-    )
-
-    expected_payout: Mapped[Decimal | None] = mapped_column(
-        Numeric(10, 2), 
-        nullable=False
-    )
-
-    payout: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
-
-    payout_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), 
-        nullable=True
     )
 
     # Дата изменения статуса. При создании ставим текущее время UTC,
@@ -50,12 +30,30 @@ class Order(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
+    status: Mapped[str] = mapped_column(String)
+
+    expected_payout: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+
+    payout: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+
+    is_cancelled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    is_cancelled_finished: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    has_returned: Mapped[bool] = mapped_column(Boolean, default=False)
+
     items: Mapped[list["OrderItem"]] = relationship(  # noqa: F821  # pyright: ignore[reportUndefinedVariable]
         back_populates="order",
         cascade="all, delete-orphan",
     )
 
-    stock_items: Mapped[list["StockItem"]] = relationship(  # noqa: F821  # pyright: ignore[reportUndefinedVariable]
-        back_populates="order",
-        cascade="all, delete-orphan",
-    )
+    last_update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    last_cancel_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    last_return_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    # stock_items: Mapped[list["StockItem"]] = relationship(  # noqa: F821  # pyright: ignore[reportUndefinedVariable]
+    #     back_populates="order",
+    #     cascade="all, delete-orphan",
+    # )

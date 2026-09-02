@@ -1,7 +1,7 @@
 from datetime import date
 
 from app.audit.exceptions import ActionNotFoundError
-from app.audit.repo import AuditRepository
+from app.audit.repo import AuditRepositoryInterface
 from app.audit.schemas import (
     AuditActionCreate,
     AuditActionCreateResponse,
@@ -13,7 +13,7 @@ from app.audit.schemas import (
 
 
 class AuditHandler:
-    def __init__(self, repo: AuditRepository):
+    def __init__(self, repo: AuditRepositoryInterface):
         self.repo = repo
 
     async def get_day(self, target_date: date) -> AuditDayFullResponse:
@@ -44,7 +44,7 @@ class AuditHandler:
         cash_from_db.initial_cash = new_initial_cash
         cash_from_db.current_cash = new_initial_cash + cash_changes
 
-        await self.repo.session.commit()
+        await self.repo.commit()
 
         audit = AuditDaySetInitialCashResponse.model_validate(cash_from_db)
 
@@ -59,7 +59,7 @@ class AuditHandler:
 
         cash_by_day = await self.repo.calculate_cash(payload.creation_date)
 
-        await self.repo.session.commit()
+        await self.repo.commit()
 
         action_id, action, actor, money, current_cash = (
             action_from_db.id,
@@ -94,7 +94,7 @@ class AuditHandler:
             deleted_action_from_db.creation_date
         )
 
-        await self.repo.session.commit()
+        await self.repo.commit()
 
         deleted_action_response = DeleteResponseDTO(
             current_cash=cash_from_db.current_cash,

@@ -36,6 +36,32 @@ export interface DeleteResponse {
     current_cash: number;
 }
 
+// --- Заказы ---
+
+export interface OrderItemResponse {
+    id: number;
+    offer_id: string;
+    offer_name: string;
+    count: number;
+    payment: number;
+    subsidy: number;
+    cashback: number;
+    vat: number;
+}
+
+export interface OrderResponse {
+    order_id: number;
+    campaign_id: number;
+    created_at: string;
+    status: string;
+    expected_payout: number;
+    items: OrderItemResponse[];
+}
+
+export interface OrdersDayResponse {
+    orders: OrderResponse[];
+}
+
 export class ApiError extends Error {
     status: number;
     detail: string;
@@ -145,6 +171,17 @@ export const api = {
             `${API_PREFIX}/audit/action/${auditId}?action_id=${encodeURIComponent(actionId)}`,
             {
                 method: "DELETE",
+                headers: authHeaders(),
+            },
+        );
+        if (!res.ok) await parseError(res);
+        return res.json();
+    },
+
+    async getOrders(day: string): Promise<OrdersDayResponse> {
+        const res = await fetch(
+            `${API_PREFIX}/orders?day=${encodeURIComponent(day)}`,
+            {
                 headers: authHeaders(),
             },
         );

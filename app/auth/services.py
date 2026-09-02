@@ -11,6 +11,7 @@ from app.auth.schemas import (
     CreateUserSchema,
     LoginUserSchema,
     RegisterUserSchema,
+    ResponseUserSchema,
 )
 from app.auth.utils import create_access_token, hash_password, verify_password
 from app.infrastructure.config import settings
@@ -77,10 +78,13 @@ class AuthHandler:
             database_url=tenant_url,
         )
 
-        await self.repo.create_user(new_user.model_dump())
+        created_user = await self.repo.create_user(new_user.model_dump())
+
+        user = ResponseUserSchema.model_validate(created_user)
+
         await self.repo.commit()
 
-        return {"status": "success", "detail": "Пользователь и его база данных созданы"}
+        return user
 
     async def handle_delete_user(self, username: str):
         user_from_db: User | None = await self.repo.get_user_by_username_or_none(

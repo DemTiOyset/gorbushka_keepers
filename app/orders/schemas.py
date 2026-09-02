@@ -1,8 +1,9 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class BaseSchema(BaseModel):
@@ -29,36 +30,20 @@ class NotificationType(str, Enum):
     ORDER_UPDATED = "ORDER_UPDATED"
 
 
-class OrderStatusType(str, Enum):
-    PLACING = "PLACING"
-    RESERVED = "RESERVED"
-    UNPAID = "UNPAID"
-    PROCESSING = "PROCESSING"
-    DELIVERY = "DELIVERY"
-    PICKUP = "PICKUP"
-    DELIVERED = "DELIVERED"
-    CANCELLED = "CANCELLED"
-    PENDING = "PENDING"
-    PARTIALLY_RETURNED = "PARTIALLY_RETURNED"
-    RETURNED = "RETURNED"
-    UNKNOWN = "UNKNOWN"
-
-    @property
-    def label(self) -> str:
-        return {
-            self.PLACING: "Оформляется",
-            self.RESERVED: "Зарезервирован",
-            self.UNPAID: "Не оплачен",
-            self.PROCESSING: "В обработке",
-            self.DELIVERY: "Передан в доставку",
-            self.PICKUP: "Ожидает получения",
-            self.DELIVERED: "Получен покупателем",
-            self.CANCELLED: "Отменён",
-            self.PENDING: "Ожидает обработки",
-            self.PARTIALLY_RETURNED: "Частично возвращён",
-            self.RETURNED: "Полностью возвращён",
-            self.UNKNOWN: "Неизвестный статус",
-        }[self]
+STATUS = {
+    "PLACING": "Оформляется",
+    "RESERVED": "Зарезервирован",
+    "UNPAID": "Не оплачен",
+    "PROCESSING": "В обработке",
+    "DELIVERY": "Передан в доставку",
+    "PICKUP": "Ожидает получения",
+    "DELIVERED": "Получен покупателем",
+    "CANCELLED": "Отменён",
+    "PENDING": "Ожидает обработки",
+    "PARTIALLY_RETURNED": "Частично возвращён",
+    "RETURNED": "Полностью возвращён",
+    "UNKNOWN": "Неизвестный статус",
+}
 
 
 class ReturnType(str, Enum):
@@ -73,16 +58,16 @@ class OrderUpdateType(str, Enum):
 
 
 # ============================================================
-# Common DTO
+# Common Schema
 # ============================================================
 
 
-class NotificationOrderItemDTO(BaseSchema):
+class NotificationOrderItemSchema(BaseSchema):
     offer_id: str = Field(alias="offerId")
     count: int
 
 
-class NotificationReturnItemDTO(BaseSchema):
+class NotificationReturnItemSchema(BaseSchema):
     offer_id: str = Field(alias="offerId")
     count: int
 
@@ -92,7 +77,7 @@ class NotificationReturnItemDTO(BaseSchema):
 # ============================================================
 
 
-class BaseOrderNotificationDTO(BaseSchema):
+class BaseOrderNotificationSchema(BaseSchema):
     order_id: int = Field(alias="orderId")
     campaign_id: int = Field(alias="campaignId")
 
@@ -102,27 +87,27 @@ class BaseOrderNotificationDTO(BaseSchema):
 # ============================================================
 
 
-class OrderCreatedNotificationDTO(BaseOrderNotificationDTO):
+class OrderCreatedNotificationSchema(BaseOrderNotificationSchema):
     notification_type: Literal[NotificationType.ORDER_CREATED] = Field(
         alias="notificationType"
     )
 
-    items: list[NotificationOrderItemDTO]
+    items: list[NotificationOrderItemSchema]
 
     created_at: datetime = Field(alias="createdAt")
 
 
-class OrderCancelledNotificationDTO(BaseOrderNotificationDTO):
+class OrderCancelledNotificationSchema(BaseOrderNotificationSchema):
     notification_type: Literal[NotificationType.ORDER_CANCELLED] = Field(
         alias="notificationType"
     )
 
-    items: list[NotificationOrderItemDTO]
+    items: list[NotificationOrderItemSchema]
 
     cancelled_at: datetime = Field(alias="cancelledAt")
 
 
-class OrderStatusUpdatedNotificationDTO(BaseOrderNotificationDTO):
+class OrderStatusUpdatedNotificationSchema(BaseOrderNotificationSchema):
     notification_type: Literal[NotificationType.ORDER_STATUS_UPDATED] = Field(
         alias="notificationType"
     )
@@ -133,15 +118,10 @@ class OrderStatusUpdatedNotificationDTO(BaseOrderNotificationDTO):
     #
     status: str
 
-    #
-    # Полный перечень substatus очень большой.
-    #
-    substatus: str
-
     updated_at: datetime = Field(alias="updatedAt")
 
 
-class OrderReturnCreatedNotificationDTO(BaseOrderNotificationDTO):
+class OrderReturnCreatedNotificationSchema(BaseOrderNotificationSchema):
     notification_type: Literal[NotificationType.ORDER_RETURN_CREATED] = Field(
         alias="notificationType"
     )
@@ -150,12 +130,12 @@ class OrderReturnCreatedNotificationDTO(BaseOrderNotificationDTO):
 
     return_type: ReturnType = Field(alias="returnType")
 
-    items: list[NotificationReturnItemDTO]
+    items: list[NotificationReturnItemSchema]
 
     created_at: datetime = Field(alias="createdAt")
 
 
-class OrderUpdatedNotificationDTO(BaseOrderNotificationDTO):
+class OrderUpdatedNotificationSchema(BaseOrderNotificationSchema):
     notification_type: Literal[NotificationType.ORDER_UPDATED] = Field(
         alias="notificationType"
     )
@@ -165,59 +145,121 @@ class OrderUpdatedNotificationDTO(BaseOrderNotificationDTO):
     updated_at: datetime = Field(alias="updatedAt")
 
 
-class MoneyDTO(BaseModel):
+class MoneySchema(BaseModel):
     value: float
-    currencyId: str
+    currency_id: str = Field(alias="currencyId")
 
 
-class DeliveryPricesDTO(BaseModel):
-    payment: MoneyDTO | None = None
-    subsidy: MoneyDTO | None = None
+class DeliveryPricesSchema(BaseModel):
+    payment: MoneySchema | None = None
+    subsidy: MoneySchema | None = None
     vat: str | None = None
 
 
-class OrderPricesDTO(BaseModel):
-    payment: MoneyDTO | None = None
-    subsidy: MoneyDTO | None = None
-    cashback: MoneyDTO | None = None
-    delivery: DeliveryPricesDTO | None = None
+class OrderPricesSchema(BaseModel):
+    payment: MoneySchema
+    subsidy: MoneySchema
+    cashback: MoneySchema
+    delivery: DeliveryPricesSchema | None = None
 
 
-class ItemPricesDTO(BaseModel):
-    payment: MoneyDTO | None = None
-    subsidy: MoneyDTO | None = None
-    cashback: MoneyDTO | None = None
-    vat: str | None = None
+class ItemPricesSchema(BaseModel):
+    payment: MoneySchema
+    subsidy: MoneySchema
+    cashback: MoneySchema
+    vat: str
 
 
-class BusinessOrderItemDTO(BaseModel):
-    id: int
-    offerId: str
-    offerName: str
+class BusinessOrderItemSchema(BaseModel):
+    offer_id: str = Field(alias="offerId")
+    offer_name: str = Field(alias="offerName")
     count: int
-    prices: ItemPricesDTO | None = None
+    prices: ItemPricesSchema
 
 
-class BusinessOrderShipmentDTO(BaseModel):
-    id: int
-    shipmentDate: datetime
-    shipmentTime: str | None = None
+class BusinessOrderShipmentSchema(BaseModel):
+    shipment_date: datetime = Field(alias="shipmentDate")
+    shipment_time: str | None = Field(default=None, alias="shipmentTime")
 
 
-class DeliveryOrderDatesDTO(BaseModel):
-    shipment: BusinessOrderShipmentDTO | None = None
+class DeliveryOrderDatesSchema(BaseModel):
+    shipment: BusinessOrderShipmentSchema | None = None
 
 
-class BusinessOrderDTO(BaseModel):
-    orderId: int
-    campaignId: int
+class BusinessOrderSchema(BaseModel):
+    order_id: int = Field(alias="orderId")
+    campaign_id: int = Field(alias="campaignId")
     status: str
     substatus: str | None = None
-    items: list[BusinessOrderItemDTO]
-    prices: OrderPricesDTO | None = None
-    delivery: DeliveryOrderDatesDTO | None = None
+    items: list[BusinessOrderItemSchema]
+    prices: OrderPricesSchema | None = None
+    delivery: DeliveryOrderDatesSchema | None = None
 
 
-class GetBusinessOrdersResponseDTO(BaseModel):
-    orders: list[BusinessOrderDTO]
+class GetBusinessOrdersResponseSchema(BaseModel):
+    orders: list[BusinessOrderSchema]
     paging: dict = {}
+
+
+class ResponseToMarketSchema(BaseModel):
+    campaign_id: int
+    order_id: int
+    business_id: str
+    api_key: str
+
+
+class CreateOrderItemSchema(BaseModel):
+    offer_id: str
+    offer_name: str
+    count: int
+    payment: Decimal
+    subsidy: Decimal
+    cashback: Decimal
+    vat: Decimal  # процент НДС (напр. 0.00 или 0.20), приводится к Decimal
+
+
+class CreateOrderSchema(BaseModel):
+    order_id: int
+    campaign_id: int
+    status: str
+    expected_payout: float
+
+
+# ============================================================
+# Response schemas — для GET /orders?day=...
+# ============================================================
+
+
+class OrderItemResponseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    offer_id: str
+    offer_name: str
+    count: int
+    payment: Decimal
+    subsidy: Decimal
+    cashback: Decimal
+    vat: Decimal
+
+
+class OrderResponseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    order_id: int
+    campaign_id: int
+    created_at: datetime
+    status: str
+    expected_payout: Decimal
+    payout: Decimal | None = None
+    items: list[OrderItemResponseSchema]
+
+    @field_validator("status", mode="after")
+    @classmethod
+    def translate_status(cls, value: str) -> str:
+        translated_status = STATUS.get(value, STATUS["UNKNOWN"])
+        return translated_status
+
+
+class OrdersDayResponseSchema(BaseModel):
+    orders: list[OrderResponseSchema]

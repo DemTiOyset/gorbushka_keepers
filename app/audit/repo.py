@@ -1,7 +1,6 @@
 from datetime import date
 from typing import Protocol, Sequence
 
-from fastapi import Depends
 from sqlalchemy import (
     func,
     select,
@@ -13,13 +12,12 @@ from app.infrastructure.models.cash import Cash
 
 
 class AuditRepositoryInterface(Protocol):
-    async def get_cash(self) -> "Cash": ...
+    async def get_cash(self) -> Cash: ...
+    async def set_initial_cash(self) -> Cash: ...
     async def calculate_cash(self, target_date: date | None = None) -> int: ...
-    async def get_actions_by_day(
-        self, target_date: date
-    ) -> Sequence["AuditAction"]: ...
-    async def create_action(self, data: dict) -> "AuditAction": ...
-    async def delete_action(self, action_id: int) -> "AuditAction | None": ...
+    async def get_actions_by_day(self, target_date: date) -> Sequence[AuditAction]: ...
+    async def create_action(self, data: dict) -> AuditAction: ...
+    async def delete_action(self, action_id: int) -> AuditAction | None: ...
     async def commit(self) -> None: ...
 
 
@@ -29,7 +27,7 @@ class AuditRepository:
 
     async def get_cash(self):
         result = await self.session.execute(select(Cash))
-        return result.scalar_one()
+        return result.scalar_one_or_none()
 
     async def calculate_cash(self, target_date: date | None = None) -> int:
         stmt = select(func.sum(AuditAction.money))
@@ -87,3 +85,10 @@ class AuditRepository:
         await self.session.delete(action)
         await self.session.flush()
         return action
+
+    async def set_initial_cash(self) -> Cash:
+        cash = Cash(initial_cash=0, current_cash=0)
+        self.session.add(cash)
+        await self.session.flush()
+
+        return cash

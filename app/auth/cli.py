@@ -9,7 +9,7 @@ if hasattr(sys.stdin, "reconfigure"):
 from app.auth.repo import AuthRepository
 from app.auth.schemas import RegisterUserSchema
 from app.auth.services import AuthHandler
-from app.infrastructure.database import async_session_maker
+from app.infrastructure.database import Provisioner, async_session_maker
 
 
 def safe_input(prompt: str) -> str:
@@ -24,7 +24,8 @@ async def create_user_action():
 
     async with async_session_maker() as session:
         repo = AuthRepository(session)
-        service = AuthHandler(repo)
+        provisioner = Provisioner()
+        service = AuthHandler(repo=repo, provisioner=provisioner)
         payload = RegisterUserSchema(username=username, password=password)
         await service.handle_register_user(payload)
     print(f"Пользователь '{username}', с паролем {password} создан.")
@@ -39,7 +40,8 @@ async def delete_user_action():
 
     async with async_session_maker() as session:
         repo = AuthRepository(session)
-        service = AuthHandler(repo)
+        provisioner = Provisioner()
+        service = AuthHandler(repo=repo, provisioner=provisioner)
         await service.handle_delete_user(username=username)
     print(f"Пользователь '{username}' удален.")
 
