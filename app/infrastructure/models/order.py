@@ -34,7 +34,7 @@ class Order(Base):
 
     expected_payout: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    payout: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    payout: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=True)
 
     is_cancelled: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -47,11 +47,17 @@ class Order(Base):
         cascade="all, delete-orphan",
     )
 
-    last_update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_update_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
-    last_cancel_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_cancel_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
-    last_return_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_return_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # stock_items: Mapped[list["StockItem"]] = relationship(  # noqa: F821  # pyright: ignore[reportUndefinedVariable]
     #     back_populates="order",

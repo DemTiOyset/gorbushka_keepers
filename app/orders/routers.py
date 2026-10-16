@@ -15,9 +15,14 @@ from app.orders.repo import OrdersRepository
 from app.orders.schemas import (
     OrderCancelledNotificationSchema,
     OrderCreatedNotificationSchema,
+    OrderReturnCreatedNotificationSchema,
     OrderStatusUpdatedNotificationSchema,
 )
-from app.orders.services import CurrentOrdersHandler, OrderNotificationHandler
+from app.orders.services import (
+    CurrentOrdersHandler,
+    OrderNotificationHandler,
+    ReturnsHandler,
+)
 from app.users.dependencies import get_user_repo_obj
 
 router = APIRouter(tags=["orders"])
@@ -41,19 +46,25 @@ async def webhook_listener(
         order_created_notification = OrderCreatedNotificationSchema.model_validate(
             payload
         )
-        result = handler.add_order_created(order_created_notification)
+        return await handler.add_order_created(order_created_notification)
 
     elif notification_type == "ORDER_STATUS_UPDATED":
         order_updated_notification = (
             OrderStatusUpdatedNotificationSchema.model_validate(payload)
         )
-        result = handler.update_order_status(order_updated_notification)
+        return await handler.update_order_status(order_updated_notification)
 
     elif notification_type == "ORDER_CANCELLED":
         cancelled_order_notification = OrderCancelledNotificationSchema.model_validate(
             payload
         )
-        result = handler.cancel_order(cancelled_order_notification)
+        return await handler.cancel_order(cancelled_order_notification)
+
+    elif notification_type == "ORDER_RETURN_CREATED":
+        return_notification = OrderReturnCreatedNotificationSchema.model_validate(
+            payload
+        )
+        return await handler.create_return_order(return_notification)
 
 
 @router.get("/orders")
@@ -67,3 +78,9 @@ async def get_orders_by_day(
     """
     handler = CurrentOrdersHandler(repo)
     return await handler.handle_get_orders_by_day(day)
+
+
+@router.get("/returns")
+async def get_returns_and_cancellations(repo=Depends(get_order_repo_for_user)):
+    handler = ReturnsHandler(repo)
+    return await handler.handle_get_returns_and_cancellations()

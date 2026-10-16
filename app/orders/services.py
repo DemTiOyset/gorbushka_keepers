@@ -3,15 +3,16 @@ from decimal import Decimal
 from typing import Any
 
 from app.infrastructure.database import TenantSessionManagerInterface
-from app.infrastructure.models.order import Order
 from app.orders.client import MarketClientInterface
 from app.orders.repo import OrdersRepositoryInterface
 from app.orders.schemas import (
     BusinessOrderSchema,
+    CancellationsAndReturnsSchema,
     CreateOrderItemSchema,
     CreateOrderSchema,
     OrderCancelledNotificationSchema,
     OrderCreatedNotificationSchema,
+    OrderItemResponseSchema,
     OrderResponseSchema,
     OrderReturnCreatedNotificationSchema,
     OrdersDayResponseSchema,
@@ -190,7 +191,7 @@ class OrderNotificationHandler:
             )
 
             if existing_order is None:
-                return self.add_order_created(notification=notification)
+                return await self.add_order_created(notification=notification)
 
             if (
                 existing_order.last_return_time is not None
@@ -199,17 +200,42 @@ class OrderNotificationHandler:
                 return
 
             for item in notification.items:
-                existing_item = order_repo.get_order_item_by_offer_id_order_id(
+                existing_item = await order_repo.get_order_item_by_offer_id_order_id(
                     order_id=existing_order.order_id, offer_id=item.offer_id
                 )
-        ...
+                if existing_item is None:
+                    return
+
+                if existing_item.count < item.count:
+                    return
+
+                await order_repo.reduce_order_item_count(
+                    order_item=existing_item, count=item.count
+                )
+
+                await order_repo.add_order_item_returned_count(
+                    order_item=existing_item, count=item.count
+                )
+                await order_repo.mark_return_type_order_item(
+                    order_item=existing_item, return_type=notification.return_type.value
+                )
+
+            await order_repo.mark_has_returned_order(existing_order)
+
+            await order_repo.commit()
+
+        return "ok"
 
 
 class CurrentOrdersHandler:
     def __init__(self, repo: OrdersRepositoryInterface):
         self.repo = repo
 
-    async def handle_get_orders_by_day(self, day: date):
+    async def handle_get_orders_by_day(
+        self,
+        day: date,
+        earlier: bool = True,
+    ):
         orders_from_db = await self.repo.get_orders_with_items_by_day(day)
         if not orders_from_db:
             return OrdersDayResponseSchema(orders=[])
@@ -219,3 +245,25 @@ class CurrentOrdersHandler:
         ]
 
         return OrdersDayResponseSchema(orders=response_orders)
+
+
+class ReturnsHandler:
+    def __init__(self, repo: OrdersRepositoryInterface):
+        self.repo = repo
+
+    async def handle_get_returns_and_cancellations(self):
+        cancellations = await self.repo.get_cancellations()
+        returns = await self.repo.get_returns()
+
+        response_cancellations = [
+            OrderResponseSchema.model_validate(order) for order in cancellations
+        ]
+
+        response_returns = [
+            OrderItemResponseSchema.model_validate(order_item) for order_item in returns
+        ]
+        response_schema = CancellationsAndReturnsSchema(
+            cancellations=response_cancellations, returns=response_returns
+        )
+
+        return response_schema

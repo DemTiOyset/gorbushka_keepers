@@ -92,3 +92,6 @@ class AuditRepository:
         await self.session.flush()
 
         return cash
+
+    async def commit(self):
+        await self.session.commit()

@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, ApiError, OrderResponse, OrdersDayResponse } from "../api";
+import {
+    api,
+    ApiError,
+    OrderItemResponse,
+    OrderResponse,
+    OrdersDayResponse,
+} from "../api";
 
 function todayISO(): string {
     const d = new Date();
@@ -51,6 +57,37 @@ function formatMoney(value: number): string {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(value);
+}
+
+/** Красная метка возврата/невыкупа внизу карточки заказа. */
+function returnLabel(order: OrderResponse): string | null {
+    if (!order.has_returned) return null;
+    const hasUnredeemed = order.items.some(
+        (i) => i.return_type === "UNREDEEMED",
+    );
+    const hasReturn = order.items.some((i) => i.return_type === "RETURN");
+    if (hasUnredeemed && hasReturn) return "Возврат / Невыкуп";
+    if (hasUnredeemed) return "Невыкуп";
+    return "Возврат";
+}
+
+/** Статус конкретного товара при раскрытии заказа. */
+function itemMark(
+    order: OrderResponse,
+    item: OrderItemResponse,
+): { label: string; badgeClass: string } | null {
+    // Отменён весь заказ → все товары помечаем как отменённые.
+    if (order.is_cancelled) {
+        return { label: "Отменён", badgeClass: "status-badge--cancelled" };
+    }
+
+    // Возврат/невыкуп — помечаем только те товары, у которых есть возвращённое количество.
+    if ((item.returned_count ?? 0) > 0) {
+        const label = item.return_type === "UNREDEEMED" ? "Невыкуп" : "Возврат";
+        return { label, badgeClass: "status-badge--returned" };
+    }
+
+    return null;
 }
 
 export default function Orders() {
@@ -179,8 +216,14 @@ export default function Orders() {
 function OrderCard({ order }: { order: OrderResponse }) {
     const [expanded, setExpanded] = useState(false);
 
+    const isCancelled = order.is_cancelled;
+    const returnLabelText = returnLabel(order);
+
+    const cardClass =
+        "order-card" + (isCancelled ? " order-card--cancelled" : "");
+
     return (
-        <section className="order-card">
+        <section className={cardClass}>
             <div
                 className="order-card__head"
                 onClick={() => setExpanded(!expanded)}
@@ -189,11 +232,17 @@ function OrderCard({ order }: { order: OrderResponse }) {
                     <h3 className="order-card__title">
                         Заказ #{order.order_id}
                     </h3>
-                    <span
-                        className={`status-badge ${statusBadgeClass(order.status)}`}
-                    >
-                        {statusLabel(order.status)}
-                    </span>
+                    {isCancelled ? (
+                        <span className="status-badge status-badge--cancelled">
+                            Отменён
+                        </span>
+                    ) : (
+                        <span
+                            className={`status-badge ${statusBadgeClass(order.status)}`}
+                        >
+                            {statusLabel(order.status)}
+                        </span>
+                    )}
                 </div>
                 <div className="order-card__right">
                     <span className="order-card__payout">
@@ -218,6 +267,7 @@ function OrderCard({ order }: { order: OrderResponse }) {
                                 <th>Товар (offer_id)</th>
                                 <th>Название</th>
                                 <th className="col-money">Кол-во</th>
+                                <th>Статус</th>
                                 <th className="col-money">Оплата</th>
                                 <th className="col-money">Субсидия</th>
                                 <th className="col-money">Кешбэк</th>
@@ -225,34 +275,62 @@ function OrderCard({ order }: { order: OrderResponse }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {order.items.map((item) => (
-                                <tr key={item.id}>
-                                    <td>{item.offer_id}</td>
-                                    <td>{item.offer_name}</td>
-                                    <td className="col-money">{item.count}</td>
-                                    <td className="col-money">
-                                        {formatMoney(Number(item.payment))} ₽
-                                    </td>
-                                    <td className="col-money">
-                                        {formatMoney(Number(item.subsidy))} ₽
-                                    </td>
-                                    <td className="col-money">
-                                        {formatMoney(Number(item.cashback))} ₽
-                                    </td>
-                                    <td className="col-money">
-                                        {Number(item.vat) * 100}%
-                                    </td>
-                                </tr>
-                            ))}
+                            {order.items.map((item) => {
+                                const mark = itemMark(order, item);
+                                return (
+                                    <tr key={item.id}>
+                                        <td>{item.offer_id}</td>
+                                        <td>{item.offer_name}</td>
+                                        <td className="col-money">
+                                            {item.count}
+                                        </td>
+                                        <td>
+                                            {mark ? (
+                                                <span
+                                                    className={`status-badge ${mark.badgeClass}`}
+                                                >
+                                                    {mark.label}
+                                                </span>
+                                            ) : (
+                                                <span className="muted-text">
+                                                    —
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="col-money">
+                                            {formatMoney(Number(item.payment))}{" "}
+                                            ₽
+                                        </td>
+                                        <td className="col-money">
+                                            {formatMoney(Number(item.subsidy))}{" "}
+                                            ₽
+                                        </td>
+                                        <td className="col-money">
+                                            {formatMoney(Number(item.cashback))}{" "}
+                                            ₽
+                                        </td>
+                                        <td className="col-money">
+                                            {Number(item.vat) * 100}%
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
             )}
 
             <div className="order-card__footer">
-                Создан: {new Date(order.created_at).toLocaleString("ru-RU")}
-                {" · "}
-                Кампания: {order.campaign_id}
+                <div>
+                    Создан: {new Date(order.created_at).toLocaleString("ru-RU")}
+                    {" · "}
+                    Кампания: {order.campaign_id}
+                </div>
+                {returnLabelText && (
+                    <div className="order-card__return-label">
+                        {returnLabelText}
+                    </div>
+                )}
             </div>
         </section>
     );

@@ -24,6 +24,15 @@ class OrdersRepositoryInterface(Protocol):
     async def get_order_item_by_offer_id_order_id(
         self, order_id: int, offer_id: str
     ) -> OrderItem | None: ...
+    async def add_order_item_returned_count(
+        self, order_item: OrderItem, count: int
+    ): ...
+    async def mark_has_returned_order(self, order: Order): ...
+    async def mark_return_type_order_item(
+        self, order_item: OrderItem, return_type: str
+    ): ...
+    async def get_returns(self) -> list[OrderItem]: ...
+    async def get_cancellations(self) -> list[Order]: ...
 
 
 class OrdersRepository:
@@ -93,6 +102,33 @@ class OrdersRepository:
         order_item = result.scalar_one_or_none()
 
         return order_item
+
+    async def add_order_item_returned_count(self, order_item: OrderItem, count: int):
+        order_item.returned_count = (order_item.returned_count or 0) + count
+
+    async def mark_has_returned_order(self, order: Order):
+        order.has_returned = True
+
+    async def mark_return_type_order_item(
+        self, order_item: OrderItem, return_type: str
+    ):
+        order_item.return_type = return_type
+
+    async def get_returns(self):
+        stmt = select(OrderItem).where(OrderItem.returned_count > 0)
+        result = await self.session.execute(stmt)
+        returns = result.scalars().all()
+
+        return returns
+
+    async def get_cancellations(self):
+        stmt = (
+            select(Order).where(Order.is_cancelled).options(selectinload(Order.items))
+        )
+        result = await self.session.execute(stmt)
+        cancellations = result.scalars().all()
+
+        return cancellations
 
     async def commit(self) -> None:
         await self.session.commit()

@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BaseSchema(BaseModel):
@@ -234,9 +234,13 @@ class OrderItemResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    order_id: int
     offer_id: str
     offer_name: str
     count: int
+    returned_count: int | None = None
+    is_returned_finished: bool = False
+    return_type: str | None = None
     payment: Decimal
     subsidy: Decimal
     cashback: Decimal
@@ -252,14 +256,17 @@ class OrderResponseSchema(BaseModel):
     status: str
     expected_payout: Decimal
     payout: Decimal | None = None
+    is_cancelled: bool = False
+    has_returned: bool = False
     items: list[OrderItemResponseSchema]
-
-    @field_validator("status", mode="after")
-    @classmethod
-    def translate_status(cls, value: str) -> str:
-        translated_status = STATUS.get(value, STATUS["UNKNOWN"])
-        return translated_status
 
 
 class OrdersDayResponseSchema(BaseModel):
     orders: list[OrderResponseSchema]
+
+
+class CancellationsAndReturnsSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    cancellations: list[OrderResponseSchema]
+    returns: list[OrderItemResponseSchema]

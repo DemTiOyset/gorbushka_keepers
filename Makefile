@@ -10,7 +10,7 @@
 #      make down                — остановить
 #      make rebuild             — пересобрать и перезапустить (локально)
 #      make rebuild-frontend    — пересобрать только фронтенд
-#      Фронтенд: http://localhost:5173   Бекенд: http://localhost:8000
+#      Фронтенд:   Бекенд: http://localhost:8000
 #
 #   2. ПРОДАКШЕН (Caddy + Let's Encrypt):
 #      make prod                — поднять стек с HTTPS (https://app-dozor.ru)

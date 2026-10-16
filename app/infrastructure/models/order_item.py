@@ -29,9 +29,13 @@ class OrderItem(Base):
 
     vat: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    returned_count: Mapped[int] = mapped_column(Integer)
+    returned_count: Mapped[int] = mapped_column(Integer, nullable=True)
 
     is_returned_finished: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Тип возврата последнего события ORDER_RETURN_CREATED:
+    # "UNREDEEMED" (невыкуп) или "RETURN" (возврат).
+    return_type: Mapped[str | None] = mapped_column(String, nullable=True)
 
     order: Mapped["Order"] = relationship(  # noqa: F821  # pyright: ignore[reportUndefinedVariable]
         back_populates="items",

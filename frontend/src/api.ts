@@ -40,9 +40,13 @@ export interface DeleteResponse {
 
 export interface OrderItemResponse {
     id: number;
+    order_id: number;
     offer_id: string;
     offer_name: string;
     count: number;
+    returned_count: number | null;
+    is_returned_finished: boolean;
+    return_type: string | null;
     payment: number;
     subsidy: number;
     cashback: number;
@@ -55,11 +59,19 @@ export interface OrderResponse {
     created_at: string;
     status: string;
     expected_payout: number;
+    payout: number | null;
+    is_cancelled: boolean;
+    has_returned: boolean;
     items: OrderItemResponse[];
 }
 
 export interface OrdersDayResponse {
     orders: OrderResponse[];
+}
+
+export interface CancellationsAndReturnsResponse {
+    cancellations: OrderResponse[];
+    returns: OrderItemResponse[];
 }
 
 export class ApiError extends Error {
@@ -185,6 +197,14 @@ export const api = {
                 headers: authHeaders(),
             },
         );
+        if (!res.ok) await parseError(res);
+        return res.json();
+    },
+
+    async getReturns(): Promise<CancellationsAndReturnsResponse> {
+        const res = await fetch(`${API_PREFIX}/returns`, {
+            headers: authHeaders(),
+        });
         if (!res.ok) await parseError(res);
         return res.json();
     },

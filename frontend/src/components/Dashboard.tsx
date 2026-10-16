@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiError, AuditAction, AuditDay } from "../api";
 import { session } from "../auth";
 import Orders from "./Orders";
+import Returns from "./Returns";
 
 interface Props {
     onLogout: () => void;
@@ -26,7 +27,7 @@ function formatMoney(value: number): string {
     return new Intl.NumberFormat("ru-RU").format(value);
 }
 
-type Tab = "cash" | "orders";
+type Tab = "cash" | "orders" | "returns";
 
 export default function Dashboard({ onLogout }: Props) {
     const [tab, setTab] = useState<Tab>("cash");
@@ -157,7 +158,12 @@ export default function Dashboard({ onLogout }: Props) {
                 <div className="topbar-brand">
                     <span className="brand-mark">₽</span>
                     <span className="brand-text">
-                        Дозор{tab === "orders" ? " · Заказы" : " · Касса"}
+                        Дозор
+                        {tab === "orders"
+                            ? " · Заказы"
+                            : tab === "returns"
+                              ? " · Возвраты"
+                              : " · Касса"}
                     </span>
                 </div>
                 <nav className="topbar-tabs">
@@ -179,6 +185,15 @@ export default function Dashboard({ onLogout }: Props) {
                     >
                         📦 Заказы
                     </button>
+                    <button
+                        className={
+                            "topbar-tab" +
+                            (tab === "returns" ? " topbar-tab--active" : "")
+                        }
+                        onClick={() => setTab("returns")}
+                    >
+                        ↩️ Возвраты
+                    </button>
                 </nav>
                 <div className="topbar-user">
                     <span className="user-greeting">{username}</span>
@@ -190,6 +205,8 @@ export default function Dashboard({ onLogout }: Props) {
 
             {tab === "orders" ? (
                 <Orders />
+            ) : tab === "returns" ? (
+                <Returns />
             ) : (
                 <main className="content">
                     <div className="content-head">
