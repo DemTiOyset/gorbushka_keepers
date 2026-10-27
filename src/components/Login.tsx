@@ -7,8 +7,8 @@ interface Props {
 }
 
 export default function Login({ onSuccess }: Props) {
-    const [username, setUsername] = useState("test_user");
-    const [password, setPassword] = useState("1234");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +43,7 @@ export default function Login({ onSuccess }: Props) {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="например, test_user или osman"
+                    placeholder="например, osman"
                     autoFocus
                     required
                 />
@@ -67,23 +67,6 @@ export default function Login({ onSuccess }: Props) {
                 >
                     {loading ? "Входим..." : "Войти"}
                 </button>
-
-                <div className="demo-credentials">
-                    <div><strong>Тестовый аккаунт:</strong> <code>test_user</code> / <code>1234</code></div>
-                    <div>Также доступен: <code>osman</code>, <code>timur</code></div>
-                    <div className="demo-credentials-actions">
-                        <button
-                            type="button"
-                            className="link-button"
-                            onClick={() => {
-                                setUsername("test_user");
-                                setPassword("1234");
-                            }}
-                        >
-                            Заполнить demo данные
-                        </button>
-                    </div>
-                </div>
             </form>
         </div>
     );

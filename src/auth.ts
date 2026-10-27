@@ -1,4 +1,4 @@
-// Хранилище сессии: JWT / токен в localStorage + имя пользователя.
+// Хранилище сессии: JWT в localStorage + имя пользователя в памяти.
 
 const TOKEN_KEY = "access_token";
 const USER_KEY = "username";

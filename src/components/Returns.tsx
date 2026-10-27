@@ -94,7 +94,7 @@ export default function Returns() {
                     </section>
 
                     {/* Возвраты и невыкупы */}
-                    <section className="actions-section" style={{ marginTop: 24 }}>
+                    <section className="actions-section">
                         <div className="section-head">
                             <h3 className="section-title">
                                 Возвраты и невыкупы ({returns.length})

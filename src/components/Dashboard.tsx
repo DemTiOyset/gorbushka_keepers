@@ -9,6 +9,9 @@ interface Props {
 }
 
 function todayISO(): string {
+    // Локальная дата в формате YYYY-MM-DD.
+    // toISOString() здесь не подходит — он возвращает UTC и для таймзон с
+    // положительным смещением даёт «завтра» поздно вечером.
     const d = new Date();
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -107,10 +110,9 @@ export default function Dashboard({ onLogout }: Props) {
         setError(null);
         try {
             await api.createAction({
-                actor: newActor.trim() || (username ?? "Оператор"),
+                actor: newActor.trim(),
                 action: newAction.trim(),
                 money,
-                creation_date: date,
             });
             setNewActor("");
             setNewAction("");
@@ -130,6 +132,8 @@ export default function Dashboard({ onLogout }: Props) {
         setDeleting(true);
         setError(null);
         try {
+            // Бэкенд требует audit_id в пути и action_id в query.
+            // Из схемы action.id — это идентификатор действия.
             await api.deleteAction(pendingDelete.id, pendingDelete.id);
             setPendingDelete(null);
             await loadDay(date);
@@ -141,7 +145,7 @@ export default function Dashboard({ onLogout }: Props) {
         }
     }
 
-    const totalDelta = day?.actions?.reduce((acc, a) => acc + (Number(a.money) || 0), 0) ?? 0;
+    const totalDelta = day?.actions?.reduce((acc, a) => acc + a.money, 0) ?? 0;
     const deltaPositive = totalDelta >= 0;
 
     // Добавлять и удалять действия можно только за сегодняшний день.
@@ -213,25 +217,16 @@ export default function Dashboard({ onLogout }: Props) {
                                 средств за день
                             </p>
                         </div>
-                        <div className="date-picker-row">
-                            <div className="date-picker">
-                                <label className="field-label">
-                                    Дата операционного дня
-                                </label>
-                                <input
-                                    className="field-input"
-                                    type="date"
-                                    value={date}
-                                    onChange={(e) => setDate(e.target.value)}
-                                />
-                            </div>
-                            <button
-                                className="btn-ghost btn-ghost--small"
-                                onClick={() => setDate(todayISO())}
-                                style={{ marginTop: "auto" }}
-                            >
-                                Сегодня
-                            </button>
+                        <div className="date-picker">
+                            <label className="field-label">
+                                Дата операционного дня
+                            </label>
+                            <input
+                                className="field-input"
+                                type="date"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                            />
                         </div>
                     </div>
 
@@ -449,7 +444,7 @@ export default function Dashboard({ onLogout }: Props) {
                                         onChange={(e) =>
                                             setNewActor(e.target.value)
                                         }
-                                        placeholder={`например, ${username || "Тимур"}`}
+                                        placeholder="например, Тимур"
                                         autoFocus
                                         required
                                     />
@@ -464,7 +459,7 @@ export default function Dashboard({ onLogout }: Props) {
                                         onChange={(e) =>
                                             setNewAction(e.target.value)
                                         }
-                                        placeholder="например, взял в долг у поставщика или продажа товара"
+                                        placeholder="например, взял в долг у поставщика"
                                         required
                                     />
 
@@ -517,7 +512,7 @@ export default function Dashboard({ onLogout }: Props) {
                                 className="modal-card modal-card--small"
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <h3 className="modal-title" style={{ padding: "18px 22px 0" }}>
+                                <h3 className="modal-title">
                                     Удалить действие?
                                 </h3>
                                 <p className="modal-text">

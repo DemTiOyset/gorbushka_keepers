@@ -9,7 +9,8 @@ export default function App() {
         session.isAuthenticated(),
     );
 
-    // Слушаем событие от api при потере авторизации
+    // Слушаем событие от api.ts при получении 401 от бэкенда — токен
+    // невалиден или просрочен, чистим сессию и отправляем на логин.
     useEffect(() => {
         function onUnauthorized() {
             session.clear();
@@ -20,7 +21,8 @@ export default function App() {
             window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
     }, []);
 
-    // Реактивная проверка окна localStorage в другой вкладке
+    // Реактивная проверка окна localStorage в другой вкладке (например, ручной
+    // выход в соседней вкладке). Необязательно, но дёшево и приятно.
     useEffect(() => {
         function onStorage(e: StorageEvent) {
             if (e.key === "access_token" && !e.newValue) {
