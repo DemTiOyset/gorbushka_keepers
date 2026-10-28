@@ -35,6 +35,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.zed
 
 # --- Python: тестирование, профилирование и линтеры ---
 .pytest_cache/
