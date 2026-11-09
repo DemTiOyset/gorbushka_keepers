@@ -1,9 +1,11 @@
+import logging
 from datetime import date
 from decimal import Decimal
-import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+from notifier import send_return_notification
 
 from app.infrastructure.database import TenantSessionManagerInterface
 from app.orders.client import MarketClientInterface
@@ -22,14 +24,14 @@ from app.orders.schemas import (
     OrderStatusUpdatedNotificationSchema,
     ResponseToMarketSchema,
 )
-from app.users.repo import UserRepositoryInfrastructure
+from app.users.repo import UserRepositoryInterface
 
 
 class OrderNotificationHandler:
     def __init__(
         self,
         tenant_manager: TenantSessionManagerInterface,
-        user_repo: UserRepositoryInfrastructure,
+        user_repo: UserRepositoryInterface,
         market_client: MarketClientInterface,
         order_repo_type: OrdersRepositoryInterface,
     ):
@@ -224,8 +226,6 @@ class OrderNotificationHandler:
                 )
 
                 try:
-                    from app.tg_bot.notifier import send_return_notification
-
                     await send_return_notification(
                         order_id=existing_order.order_id,
                         item_id=existing_item.id,

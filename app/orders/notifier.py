@@ -1,4 +1,5 @@
 import logging
+
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.infrastructure.config import settings
@@ -23,9 +24,8 @@ async def send_return_notification(
     - «⏳ Оставить» (товар еще не пришел к продавцу)
     """
     token = settings.TG_BOT_TOKEN
-    target_chat = chat_id or settings.TG_CHAT_ID
 
-    if not token or not target_chat:
+    if not token or not chat_id:
         logger.warning(
             "Telegram bot notification skipped: TG_BOT_TOKEN or TG_CHAT_ID not configured."
         )
@@ -45,36 +45,38 @@ async def send_return_notification(
         f"Товар уже поступил к продавцу?"
     )
 
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "✅ Возвращен",
-                callback_data=f"ret_done:{item_id}",
-            ),
-            InlineKeyboardButton(
-                "⏳ Оставить",
-                callback_data=f"ret_keep:{item_id}",
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                "📦 Все непришедшие возвраты",
-                callback_data="list_pending",
-            ),
-        ],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    # keyboard = [
+    #     [
+    #         InlineKeyboardButton(
+    #             "✅ Возвращен",
+    #             callback_data=f"ret_done:{item_id}",
+    #         ),
+    #         InlineKeyboardButton(
+    #             "⏳ Оставить",
+    #             callback_data=f"ret_keep:{item_id}",
+    #         ),
+    #     ],
+    #     [
+    #         InlineKeyboardButton(
+    #             "📦 Все непришедшие возвраты",
+    #             callback_data="list_pending",
+    #         ),
+    #     ],
+    # ]
+    # reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
         bot = Bot(token=token)
         async with bot:
             await bot.send_message(
-                chat_id=target_chat,
+                chat_id=chat_id,
                 text=text,
                 parse_mode="HTML",
-                reply_markup=reply_markup,
+                # reply_markup=reply_markup,
             )
-        logger.info(f"Telegram return notification sent for order #{order_id}, item {item_id}")
+        logger.info(
+            f"Telegram return notification sent for order #{order_id}, item {item_id}"
+        )
         return True
     except Exception as e:
         logger.error(f"Failed to send telegram notification: {e}")

@@ -8,7 +8,7 @@ from app.users.services import UserHandler
 
 # 1. Принудительно устанавливаем UTF-8 кодировку для ввода
 if hasattr(sys.stdin, "reconfigure"):
-    sys.stdin.reconfigure(encoding="utf-8", errors="replace")
+    sys.stdin.reconfigure(encoding="utf-8", errors="replace")  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def safe_input(prompt: str) -> str:

@@ -1,118 +1,48 @@
 import logging
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-from app.infrastructure.config import settings
-from app.infrastructure.database import async_session_maker
-from app.infrastructure.models.user import User
-from app.infrastructure.models.order_item import OrderItem
+from app.infrastructure.database import (
+    TenantSessionManagerInterface,
+)
+from app.tg_bot.repo import TelegramBotRepositoryInterface
+from app.users.repo import UserRepositoryInterface
 
 logger = logging.getLogger(__name__)
 
 
-async def get_all_pending_returns() -> list[dict]:
-    """
-    Находит все возвраты по всем магазинам/пользователям,
-    которые ещё не пришли к продавцу (is_returned_finished == False).
-    """
-    pending_returns = []
+class TelegramBotHandler:
+    def __init__(
+        self,
+        tenant_manager: TenantSessionManagerInterface,
+        user_repo: UserRepositoryInterface,
+        telegram_bot_repo_type: TelegramBotRepositoryInterface,
+    ):
+        self.tenant_manager = tenant_manager
+        self.user_repo = user_repo
+        self.telegram_bot_repo_type = telegram_bot_repo_type
 
-    async with async_session_maker() as system_session:
-        result = await system_session.execute(select(User))
-        users = result.scalars().all()
+    async def get_all_pending_returns(self, telegram_id: int) -> list[dict] | None:
+        """
+        Находит все возвраты по всем магазинам/пользователям,
+        которые ещё не пришли к продавцу (is_returned_finished == False).
+        """
+        pending_returns = []
 
-    for user in users:
-        if not user.database_url:
-            continue
+        user_from_db = await self.user_repo.get_user_by_telegram_id(telegram_id)
 
-        tenant_engine = create_async_engine(user.database_url, echo=False)
-        tenant_session_factory = async_sessionmaker(tenant_engine, expire_on_commit=False)
+        if user_from_db is None:
+            return
 
-        try:
-            async with tenant_session_factory() as session:
-                stmt = select(OrderItem).where(
-                    OrderItem.returned_count > 0,
-                    OrderItem.is_returned_finished.is_(False),
-                )
-                res = await session.execute(stmt)
-                items = res.scalars().all()
+        async with self.tenant_manager.get_repository(  # pyright: ignore[reportGeneralTypeIssues]
+            user_from_db.database_url,
+            self.telegram_bot_repo_type,  # pyright: ignore[reportArgumentType]
+        ) as telegram_bot_repo:
+            items = telegram_bot_repo.get_returned_orders()
 
-                for item in items:
-                    pending_returns.append({
-                        "username": user.username,
-                        "database_url": user.database_url,
-                        "item_id": item.id,
-                        "order_id": item.order_id,
-                        "offer_id": item.offer_id,
-                        "offer_name": item.offer_name,
-                        "returned_count": item.returned_count or 1,
-                        "return_type": item.return_type or "RETURN",
-                        "is_returned_finished": item.is_returned_finished,
-                    })
-        except Exception as e:
-            logger.error(f"Error fetching pending returns for user {user.username}: {e}")
-        finally:
-            await tenant_engine.dispose()
-
-    return pending_returns
-
-
-async def set_return_status(item_id: int, is_finished: bool) -> bool:
-    """
-    Обновляет статус возврата товара (is_returned_finished).
-    Ищет товар по item_id в tenant-базах пользователей.
-    """
-    async with async_session_maker() as system_session:
-        result = await system_session.execute(select(User))
-        users = result.scalars().all()
-
-    for user in users:
-        if not user.database_url:
-            continue
-
-        tenant_engine = create_async_engine(user.database_url, echo=False)
-        tenant_session_factory = async_sessionmaker(tenant_engine, expire_on_commit=False)
-
-        try:
-            async with tenant_session_factory() as session:
-                stmt = select(OrderItem).where(OrderItem.id == item_id)
-                res = await session.execute(stmt)
-                order_item = res.scalar_one_or_none()
-
-                if order_item is not None:
-                    order_item.is_returned_finished = is_finished
-                    await session.commit()
-                    return True
-        except Exception as e:
-            logger.error(f"Error updating return status for item {item_id}: {e}")
-        finally:
-            await tenant_engine.dispose()
-
-    return False
-
-
-async def get_return_by_id(item_id: int) -> dict | None:
-    """Получает детальную информацию о возврате по id товара."""
-    async with async_session_maker() as system_session:
-        result = await system_session.execute(select(User))
-        users = result.scalars().all()
-
-    for user in users:
-        if not user.database_url:
-            continue
-
-        tenant_engine = create_async_engine(user.database_url, echo=False)
-        tenant_session_factory = async_sessionmaker(tenant_engine, expire_on_commit=False)
-
-        try:
-            async with tenant_session_factory() as session:
-                stmt = select(OrderItem).where(OrderItem.id == item_id)
-                res = await session.execute(stmt)
-                item = res.scalar_one_or_none()
-
-                if item is not None:
-                    return {
-                        "username": user.username,
+            for item in items:
+                pending_returns.append(
+                    {
+                        "username": user_from_db.username,
+                        "database_url": user_from_db.database_url,
                         "item_id": item.id,
                         "order_id": item.order_id,
                         "offer_id": item.offer_id,
@@ -121,9 +51,58 @@ async def get_return_by_id(item_id: int) -> dict | None:
                         "return_type": item.return_type or "RETURN",
                         "is_returned_finished": item.is_returned_finished,
                     }
-        except Exception as e:
-            logger.error(f"Error finding return item {item_id}: {e}")
-        finally:
-            await tenant_engine.dispose()
+                )
 
-    return None
+        return pending_returns
+
+    async def set_return_status(
+        self, telegram_id, item_id: int, is_finished: bool
+    ) -> bool | None:
+        """
+        Обновляет статус возврата товара (is_returned_finished).
+        Ищет товар по item_id в tenant-базах пользователей.
+        """
+        user_from_db = await self.user_repo.get_user_by_telegram_id(telegram_id)
+
+        if user_from_db is None:
+            return
+
+        async with self.tenant_manager.get_repository(  # pyright: ignore[reportGeneralTypeIssues]
+            user_from_db.database_url,
+            self.telegram_bot_repo_type,  # pyright: ignore[reportArgumentType]
+        ) as telegram_bot_repo:
+            order_item = telegram_bot_repo.get_order_item(item_id)
+
+            if order_item is not None:
+                order_item.is_returned_finished = is_finished
+                telegram_bot_repo.commit()
+                return True
+
+        return False
+
+    async def get_return_by_id(self, telegram_id: int, item_id: int) -> dict | None:
+        """Получает детальную информацию о возврате по id товара."""
+        user_from_db = await self.user_repo.get_user_by_telegram_id(telegram_id)
+
+        if user_from_db is None:
+            return
+
+        async with self.tenant_manager.get_repository(  # pyright: ignore[reportGeneralTypeIssues]
+            user_from_db.database_url,
+            self.telegram_bot_repo_type,  # pyright: ignore[reportArgumentType]
+        ) as telegram_bot_repo:
+            order_item = telegram_bot_repo.get_order_item(item_id)
+
+            if order_item is not None:
+                return {
+                    "username": user_from_db.username,
+                    "item_id": order_item.id,
+                    "order_id": order_item.order_id,
+                    "offer_id": order_item.offer_id,
+                    "offer_name": order_item.offer_name,
+                    "returned_count": order_item.returned_count or 1,
+                    "return_type": order_item.return_type or "RETURN",
+                    "is_returned_finished": order_item.is_returned_finished,
+                }
+
+        return

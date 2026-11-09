@@ -10,12 +10,12 @@ class Settings(BaseSettings):
     # Основной URL базы данных (асинхронный postgres через asyncpg).
     # Используется глобальным engine-ом для миграций и фоновыми задачами
     # (scheduler). По умолчанию совпадает с БД seller_1.
-    DATABASE_URL: str = "postgresql+asyncpg://osman:osman@db:5432/system_meta"
+    DATABASE_URL: str = "postgresql+asyncpg://osman:osman@localhost:5432/system_meta"
 
     # Параметры подключения к PostgreSQL. Используются при динамическом
     # создании tenant-баз данных (POSTGRES_HOST обычно = имени сервиса в
     # docker-compose, например 'postgres').
-    POSTGRES_HOST: str = "db"
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "osman"
     POSTGRES_PASSWORD: str = "osman"
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     API_KEY: str = ""
 
     # Telegram-бот для уведомлений о возвратах
-    TG_BOT_TOKEN: str = ""
+    TG_BOT_TOKEN: str = "9206964251:AAFjjsriesZEldYTwu0oT6hw8kPde3D_n1E"
     TG_CHAT_ID: str = ""
 
     ALGORITHM: str = "HS256"

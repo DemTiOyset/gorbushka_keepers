@@ -28,6 +28,10 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+print("ALEMBIC TABLES:", list(target_metadata.tables.keys()))
+
+print("USER COLUMNS:", list(target_metadata.tables["users"].columns.keys()))
+
 
 # ---------------------------------------------------------------------------
 # ФУНКЦИЯ ФИЛЬТРАЦИИ ТАБЛИЦ (Умное разделение на Системную БД и БД Селлеров)

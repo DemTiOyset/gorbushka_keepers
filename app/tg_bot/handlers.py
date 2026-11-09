@@ -1,4 +1,5 @@
 import logging
+
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -46,12 +47,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def show_pending_returns_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_pending_returns_message(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
     """
     Показывает список всех возвратов, которые ещё не пришли к продавцу.
     Каждый возврат оформлен в виде кликабельной кнопки, открывающей форму действия.
     """
-    returns = await get_all_pending_returns()
+    returns = await get_all_pending_returns(context._user_id)
 
     if not returns:
         msg = (
@@ -59,7 +62,9 @@ async def show_pending_returns_message(update: Update, context: ContextTypes.DEF
             "Непришедших возвратов в данный момент нет."
         )
         if update.message:
-            await update.message.reply_text(msg, parse_mode="HTML", reply_markup=get_main_reply_keyboard())
+            await update.message.reply_text(
+                msg, parse_mode="HTML", reply_markup=get_main_reply_keyboard()
+            )
         elif update.callback_query:
             await update.callback_query.answer()
             await update.callback_query.edit_message_text(msg, parse_mode="HTML")
@@ -73,19 +78,19 @@ async def show_pending_returns_message(update: Update, context: ContextTypes.DEF
     keyboard = []
     for ret in returns:
         ret_type = "Невыкуп" if ret["return_type"] == "UNREDEEMED" else "Возврат"
-        btn_text = (
-            f"Заказ #{ret['order_id']} · {ret['offer_id']} ({ret['returned_count']} шт., {ret_type})"
+        btn_text = f"Заказ #{ret['order_id']} · {ret['offer_id']} ({ret['returned_count']} шт., {ret_type})"
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=btn_text,
+                    callback_data=f"ret_open:{ret['item_id']}",
+                )
+            ]
         )
-        keyboard.append([
-            InlineKeyboardButton(
-                text=btn_text,
-                callback_data=f"ret_open:{ret['item_id']}",
-            )
-        ])
 
-    keyboard.append([
-        InlineKeyboardButton("🔄 Обновить список", callback_data="list_pending")
-    ])
+    keyboard.append(
+        [InlineKeyboardButton("🔄 Обновить список", callback_data="list_pending")]
+    )
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -126,7 +131,9 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             return
 
         ret_type = "Невыкуп" if item["return_type"] == "UNREDEEMED" else "Возврат"
-        status_str = "✅ Уже получен" if item["is_returned_finished"] else "⏳ В пути к продавцу"
+        status_str = (
+            "✅ Уже получен" if item["is_returned_finished"] else "⏳ В пути к продавцу"
+        )
 
         card_text = (
             f"📋 <b>Управление возвратом</b>\n\n"
@@ -141,8 +148,12 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
 
         keyboard = [
             [
-                InlineKeyboardButton("✅ Возвращен", callback_data=f"ret_done:{item_id}"),
-                InlineKeyboardButton("⏳ Оставить", callback_data=f"ret_keep:{item_id}"),
+                InlineKeyboardButton(
+                    "✅ Возвращен", callback_data=f"ret_done:{item_id}"
+                ),
+                InlineKeyboardButton(
+                    "⏳ Оставить", callback_data=f"ret_keep:{item_id}"
+                ),
             ],
             [
                 InlineKeyboardButton("◀️ Назад к списку", callback_data="list_pending"),
@@ -164,15 +175,22 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             item = await get_return_by_id(item_id)
             order_info = f" Заказ #{item['order_id']}" if item else ""
             sku_info = f" ({item['offer_id']})" if item else ""
-            
-            await query.answer("✅ Статус обновлен: товар пришел к продавцу, возврат закрыт!", show_alert=True)
+
+            await query.answer(
+                "✅ Статус обновлен: товар пришел к продавцу, возврат закрыт!",
+                show_alert=True,
+            )
             new_text = (
                 f"✅ <b>Товар успешно возвращен продавцу!</b>\n\n"
                 f"{order_info}{sku_info}\n"
                 f"Товар поступил к продавцу и все в порядке. Возврат помечен как закрытый."
             )
             keyboard = [
-                [InlineKeyboardButton("📦 Список непришедших возвратов", callback_data="list_pending")]
+                [
+                    InlineKeyboardButton(
+                        "📦 Список непришедших возвратов", callback_data="list_pending"
+                    )
+                ]
             ]
             await query.edit_message_text(
                 text=new_text,
@@ -191,7 +209,9 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         order_info = f" Заказ #{item['order_id']}" if item else ""
         sku_info = f" ({item['offer_id']})" if item else ""
 
-        await query.answer("⏳ Товар оставлен в списке ожидаемых возвратов.", show_alert=False)
+        await query.answer(
+            "⏳ Товар оставлен в списке ожидаемых возвратов.", show_alert=False
+        )
         new_text = (
             f"⏳ <b>Возврат оставлен в пути</b>\n\n"
             f"{order_info}{sku_info}\n"
@@ -199,10 +219,14 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         )
         keyboard = [
             [
-                InlineKeyboardButton("✅ Пометить как возвращен", callback_data=f"ret_done:{item_id}"),
+                InlineKeyboardButton(
+                    "✅ Пометить как возвращен", callback_data=f"ret_done:{item_id}"
+                ),
             ],
             [
-                InlineKeyboardButton("📦 Список непришедших возвратов", callback_data="list_pending"),
+                InlineKeyboardButton(
+                    "📦 Список непришедших возвратов", callback_data="list_pending"
+                ),
             ],
         ]
         await query.edit_message_text(

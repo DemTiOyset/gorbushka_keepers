@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.models.user import User
 
 
-class UserRepositoryInfrastructure(Protocol):
+class UserRepositoryInterface(Protocol):
     async def get_user_by_business_id_or_none(
         self, business_id: str
     ) -> User | None: ...
@@ -14,6 +14,7 @@ class UserRepositoryInfrastructure(Protocol):
     async def create_user_store(
         self, username: str, store_data: dict
     ) -> User | None: ...
+    async def get_user_by_telegram_id(self, telegram_id: int) -> User | None: ...
     async def commit(self) -> None: ...
 
 
@@ -31,6 +32,14 @@ class UserRepository:
 
     async def get_user_by_campaign_id_or_none(self, campaign_id: int) -> User | None:
         stmt = select(User).where(User.campaign_ids.contains([campaign_id]))
+        result = await self.session.execute(stmt)
+
+        user = result.scalar_one_or_none()
+
+        return user
+
+    async def get_user_by_telegram_id(self, telegram_id: int):
+        stmt = select(User).where(User.telegram_id == telegram_id)
         result = await self.session.execute(stmt)
 
         user = result.scalar_one_or_none()

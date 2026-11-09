@@ -4,7 +4,7 @@ from getpass import getpass
 
 # 1. Принудительно устанавливаем UTF-8 кодировку для ввода
 if hasattr(sys.stdin, "reconfigure"):
-    sys.stdin.reconfigure(encoding="utf-8", errors="replace")
+    sys.stdin.reconfigure(encoding="utf-8", errors="replace")  # pyright: ignore[reportAttributeAccessIssue]
 
 from app.auth.repo import AuthRepository
 from app.auth.schemas import RegisterUserSchema

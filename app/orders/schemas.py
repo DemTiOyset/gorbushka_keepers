@@ -270,3 +270,14 @@ class CancellationsAndReturnsSchema(BaseModel):
 
     cancellations: list[OrderResponseSchema]
     returns: list[OrderItemResponseSchema]
+
+
+class ReturnNotificationSchema(BaseModel):
+    order_id: int
+    item_id: int
+    offer_name: str
+    offer_id: str
+    count: int
+    return_type: str
+    campaign_id: int | None = None
+    chat_id: str | int | None = None

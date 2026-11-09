@@ -21,3 +21,7 @@ class User(Base):
     business_id: Mapped[str] = mapped_column(String, nullable=True)
 
     campaign_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list)
+
+    bot_token: Mapped[str] = mapped_column(String, nullable=True)
+
+    telegram_id: Mapped[int] = mapped_column(Integer, nullable=True)
