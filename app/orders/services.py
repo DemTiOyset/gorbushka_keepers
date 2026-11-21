@@ -3,12 +3,9 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
-from notifier import send_return_notification
-
 from app.infrastructure.database import TenantSessionManagerInterface
 from app.orders.client import MarketClientInterface
+from app.orders.notifier import send_return_notification
 from app.orders.repo import OrdersRepositoryInterface
 from app.orders.schemas import (
     BusinessOrderSchema,
@@ -25,6 +22,8 @@ from app.orders.schemas import (
     ResponseToMarketSchema,
 )
 from app.users.repo import UserRepositoryInterface
+
+logger = logging.getLogger(__name__)
 
 
 class OrderNotificationHandler:

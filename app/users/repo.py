@@ -11,8 +11,12 @@ class UserRepositoryInterface(Protocol):
         self, business_id: str
     ) -> User | None: ...
     async def get_user_by_campaign_id_or_none(self, campaign_id: int) -> User: ...
+    async def get_user_by_username(self, username: str) -> User: ...
     async def create_user_store(
         self, username: str, store_data: dict
+    ) -> User | None: ...
+    async def create_telegram_data(
+        self, telegram_id: int, username: str
     ) -> User | None: ...
     async def get_user_by_telegram_id(self, telegram_id: int) -> User | None: ...
     async def commit(self) -> None: ...
@@ -46,6 +50,27 @@ class UserRepository:
 
         return user
 
+    async def get_user_by_username(self, username: str):
+        stmt = select(User).where(User.username == username)
+        result = await self.session.execute(stmt)
+
+        user = result.scalar_one_or_none()
+
+        return user
+
+    async def create_telegram_data(self, username: str, telegram_id: int):
+        stmt = (
+            update(User)
+            .where(User.username == username)
+            .values(telegram_id=telegram_id)
+            .returning(User)
+        )
+        result = await self.session.execute(stmt)
+        updated_user = result.scalar_one_or_none()
+        await self.session.flush()
+
+        return updated_user
+
     async def create_user_store(self, username: str, store_data: dict):
         stmt = (
             update(User)
@@ -56,6 +81,7 @@ class UserRepository:
         result = await self.session.execute(stmt)
         updated_user = result.scalar_one_or_none()
         await self.session.flush()
+
         return updated_user
 
     async def commit(self):

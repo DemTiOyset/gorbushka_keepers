@@ -2,6 +2,7 @@ import sys
 
 from app.infrastructure.database import async_session_maker
 from app.tg_bot.repo import TelegramBotRepository
+from app.users.services import UserHandler
 
 if hasattr(sys.stdin, "reconfigure"):
     sys.stdin.reconfigure(encoding="utf-8", errors="replace")  # pyright: ignore[reportAttributeAccessIssue]

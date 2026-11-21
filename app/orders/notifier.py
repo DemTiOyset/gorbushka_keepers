@@ -45,25 +45,25 @@ async def send_return_notification(
         f"Товар уже поступил к продавцу?"
     )
 
-    # keyboard = [
-    #     [
-    #         InlineKeyboardButton(
-    #             "✅ Возвращен",
-    #             callback_data=f"ret_done:{item_id}",
-    #         ),
-    #         InlineKeyboardButton(
-    #             "⏳ Оставить",
-    #             callback_data=f"ret_keep:{item_id}",
-    #         ),
-    #     ],
-    #     [
-    #         InlineKeyboardButton(
-    #             "📦 Все непришедшие возвраты",
-    #             callback_data="list_pending",
-    #         ),
-    #     ],
-    # ]
-    # reply_markup = InlineKeyboardMarkup(keyboard)
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "✅ Возвращен",
+                callback_data=f"ret_done:{item_id}",
+            ),
+            InlineKeyboardButton(
+                "⏳ Оставить",
+                callback_data=f"ret_keep:{item_id}",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "📦 Все непришедшие возвраты",
+                callback_data="list_pending",
+            ),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
         bot = Bot(token=token)

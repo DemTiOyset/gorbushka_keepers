@@ -19,3 +19,9 @@ class StoreDataResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     market_type: MarketTypeEnum
     business_id: str
+
+
+class TelegramDataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    username: str
+    telegram_id: int

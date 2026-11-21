@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from telegram import (
     InlineKeyboardButton,
@@ -9,11 +10,8 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 
-from app.tg_bot.services import (
-    get_all_pending_returns,
-    get_return_by_id,
-    set_return_status,
-)
+from app.tg_bot.dependencies import get_service
+from app.tg_bot.exceptions import UserIsNotExist
 
 logger = logging.getLogger(__name__)
 
@@ -54,59 +52,69 @@ async def show_pending_returns_message(
     Показывает список всех возвратов, которые ещё не пришли к продавцу.
     Каждый возврат оформлен в виде кликабельной кнопки, открывающей форму действия.
     """
-    returns = await get_all_pending_returns(context._user_id)
+    bot_service = await get_service()
+    try:
+        returns = await bot_service.get_all_pending_returns(context._user_id)
+        if not returns:
+            msg = (
+                "🎉 <b>Отлично! Все возвращенные товары уже получены.</b>\n\n"
+                "Непришедших возвратов в данный момент нет."
+            )
+            if update.message:
+                await update.message.reply_text(
+                    msg, parse_mode="HTML", reply_markup=get_main_reply_keyboard()
+                )
+            elif update.callback_query:
+                await update.callback_query.answer()
+                await update.callback_query.edit_message_text(msg, parse_mode="HTML")
+            return
 
-    if not returns:
-        msg = (
-            "🎉 <b>Отлично! Все возвращенные товары уже получены.</b>\n\n"
-            "Непришедших возвратов в данный момент нет."
+        text = (
+            f"📦 <b>Непришедшие возвраты ({len(returns)} шт.):</b>\n"
+            "Нажмите на любой возврат ниже, чтобы открыть форму с подтверждением получения:\n"
         )
+
+        keyboard = []
+        for ret in returns:
+            ret_type = "Невыкуп" if ret.return_type == "UNREDEEMED" else "Возврат"
+            btn_text = f"Заказ #{ret.order_id} · {ret.offer_id} ({ret.returned_count} шт., {ret_type})"
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        text=btn_text,
+                        callback_data=f"ret_open:{ret.item_id}",
+                    )
+                ]
+            )
+
+        keyboard.append(
+            [InlineKeyboardButton("🔄 Обновить список", callback_data="list_pending")]
+        )
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if update.message:
+            await update.message.reply_text(
+                text=text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+            )
+        elif update.callback_query:
+            await update.callback_query.answer()
+            await update.callback_query.edit_message_text(
+                text=text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+            )
+    except UserIsNotExist:
+        msg = "Вы не зарегистрированы в системе дозор!"
         if update.message:
             await update.message.reply_text(
                 msg, parse_mode="HTML", reply_markup=get_main_reply_keyboard()
             )
         elif update.callback_query:
-            await update.callback_query.answer()
+            await update.callback_query.answer()  # убираем "часики" на кнопке
             await update.callback_query.edit_message_text(msg, parse_mode="HTML")
-        return
-
-    text = (
-        f"📦 <b>Непришедшие возвраты ({len(returns)} шт.):</b>\n"
-        "Нажмите на любой возврат ниже, чтобы открыть форму с подтверждением получения:\n"
-    )
-
-    keyboard = []
-    for ret in returns:
-        ret_type = "Невыкуп" if ret["return_type"] == "UNREDEEMED" else "Возврат"
-        btn_text = f"Заказ #{ret['order_id']} · {ret['offer_id']} ({ret['returned_count']} шт., {ret_type})"
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text=btn_text,
-                    callback_data=f"ret_open:{ret['item_id']}",
-                )
-            ]
-        )
-
-    keyboard.append(
-        [InlineKeyboardButton("🔄 Обновить список", callback_data="list_pending")]
-    )
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    if update.message:
-        await update.message.reply_text(
-            text=text,
-            parse_mode="HTML",
-            reply_markup=reply_markup,
-        )
-    elif update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.edit_message_text(
-            text=text,
-            parse_mode="HTML",
-            reply_markup=reply_markup,
-        )
 
 
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -116,6 +124,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     data = query.data
+    bot_service = await get_service()
 
     # 1. Показать список непришедших возвратов
     if data == "list_pending":
@@ -125,22 +134,24 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     # 2. Открыть форму для конкретного возврата
     if data.startswith("ret_open:"):
         item_id = int(data.split(":")[1])
-        item = await get_return_by_id(item_id)
+        item = await bot_service.get_return_by_id(
+            item_id=item_id, telegram_id=context._user_id
+        )
         if not item:
             await query.answer("Возврат не найден в базе данных.", show_alert=True)
             return
 
-        ret_type = "Невыкуп" if item["return_type"] == "UNREDEEMED" else "Возврат"
+        ret_type = "Невыкуп" if item.return_type == "UNREDEEMED" else "Возврат"
         status_str = (
-            "✅ Уже получен" if item["is_returned_finished"] else "⏳ В пути к продавцу"
+            "✅ Уже получен" if item.is_returned_finished else "⏳ В пути к продавцу"
         )
 
         card_text = (
             f"📋 <b>Управление возвратом</b>\n\n"
-            f"📦 <b>Заказ:</b> #{item['order_id']}\n"
-            f"🛒 <b>Товар:</b> {item['offer_name']}\n"
-            f"🆔 <b>SKU:</b> <code>{item['offer_id']}</code>\n"
-            f"🔢 <b>Количество:</b> {item['returned_count']} шт.\n"
+            f"📦 <b>Заказ:</b> #{item.order_id}\n"
+            f"🛒 <b>Товар:</b> {item.offer_name}\n"
+            f"🆔 <b>SKU:</b> <code>{item.offer_id}</code>\n"
+            f"🔢 <b>Количество:</b> {item.returned_count} шт.\n"
             f"🏷 <b>Тип:</b> {ret_type}\n"
             f"📊 <b>Текущий статус:</b> {status_str}\n\n"
             f"Выберите действие:"
@@ -170,11 +181,16 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     # 3. Нажатие «✅ Возвращен»
     if data.startswith("ret_done:"):
         item_id = int(data.split(":")[1])
-        success = await set_return_status(item_id, is_finished=True)
+        bot_service = await get_service()
+        success = await bot_service.set_return_status(
+            item_id=item_id, is_finished=True, telegram_id=context._user_id
+        )
         if success:
-            item = await get_return_by_id(item_id)
-            order_info = f" Заказ #{item['order_id']}" if item else ""
-            sku_info = f" ({item['offer_id']})" if item else ""
+            item = await bot_service.get_return_by_id(
+                item_id=item_id, telegram_id=context._user_id
+            )
+            order_info = f" Заказ #{item.order_id}" if item else ""
+            sku_info = f" ({item.offer_id})" if item else ""
 
             await query.answer(
                 "✅ Статус обновлен: товар пришел к продавцу, возврат закрыт!",
@@ -204,10 +220,14 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     # 4. Нажатие «⏳ Оставить»
     if data.startswith("ret_keep:"):
         item_id = int(data.split(":")[1])
-        success = await set_return_status(item_id, is_finished=False)
-        item = await get_return_by_id(item_id)
-        order_info = f" Заказ #{item['order_id']}" if item else ""
-        sku_info = f" ({item['offer_id']})" if item else ""
+        success = await bot_service.set_return_status(
+            item_id=item_id, is_finished=True, telegram_id=context._user_id
+        )
+        item = await bot_service.get_return_by_id(
+            item_id=item_id, telegram_id=context._user_id
+        )
+        order_info = f" Заказ #{item.order_id}" if item else ""
+        sku_info = f" ({item.offer_id})" if item else ""
 
         await query.answer(
             "⏳ Товар оставлен в списке ожидаемых возвратов.", show_alert=False

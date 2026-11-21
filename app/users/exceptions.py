@@ -4,3 +4,7 @@ class BaseError(Exception):
 
 class StoreAlreadyExistError(BaseError):
     pass
+
+
+class TelegramDataAlreadyExist(BaseError):
+    pass

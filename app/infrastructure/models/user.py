@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String
+from sqlalchemy import BigInteger, String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,8 +20,6 @@ class User(Base):
 
     business_id: Mapped[str] = mapped_column(String, nullable=True)
 
-    campaign_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list)
+    campaign_ids: Mapped[list[int]] = mapped_column(ARRAY(BigInteger), default=list)
 
-    bot_token: Mapped[str] = mapped_column(String, nullable=True)
-
-    telegram_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=True)
